@@ -1,0 +1,5 @@
+/test*.py
+/Try*.py
+/*.ply
+/*.csv
+/.gitignore
