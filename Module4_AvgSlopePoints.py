@@ -326,12 +326,12 @@ structures = []
 perpendicular = ""
 
 cloud = load(sys.argv[1]).pointSize(3.5)
-print(cloud)
+# print(cloud)
 # print("CLOUD CENTER")
 # print(cloud_center)
 # z_center = cloud_center[2]
 #
-# mesh = delaunay2D(cloud.points()).alpha(0.1).c("white")
+mesh = delaunay2D(cloud.points()).alpha(0.1).c("white")
 #
 # cam = dict(pos=(cloud_center),
 #            focalPoint=(2321420.115, 6926160.299, 702.312),
@@ -339,14 +339,14 @@ print(cloud)
 #            distance=293.382,
 #            clippingRange=(218.423, 388.447))
 #
-# plt = Plotter()
-# plt.addCallback('KeyPress', keyfunc)
-# plt.addCallback('LeftButtonPress', onLeftClick)
-# # plt.addCallback('RightButtonPress', onRightClick)
-# plt.addCallback('MouseMove', mouseTrack)
+plt = Plotter()
+plt.addCallback('KeyPress', keyfunc)
+plt.addCallback('LeftButtonPress', onLeftClick)
+# plt.addCallback('RightButtonPress', onRightClick)
+plt.addCallback('MouseMove', mouseTrack)
 # print("Once the program launches, press 'h' for list of default commands")
 #
-# plt.show([mesh, cloud], interactorStyle=0, bg='white', axes=1, camera=cam)
-#
-# interactive()
+plt.show([mesh, cloud], interactorStyle=0, bg='white', axes=1)
+
+interactive()
 
