@@ -56,8 +56,8 @@ def on_left_click(event):
         update_text('text1', 'SlopeAVG: OFF', [2, 5, 5])
         update_text('text2', 'Tracking: OFF', [2, 10, 5])
         update_text('text3', '', [2, 15, 5])
-        update_text('text4', '_________', [max_xyz[0], max_xyz[1], min_xyz[2]])
-        add_point(max_xyz, col='red', is_text=True)
+        update_text('text4', 'Hello', [max_xyz[0] - min_xyz[0] - 50, max_xyz[1] - min_xyz[1] - 50, 5])
+        # add_point(max_xyz, col='red', is_text=True)
         initialized = True
         # plt.addButton(button_action, pos=(min_xyz[0] + 5, min_xyz[1] + 5, min_xyz[2] + 2),
         #               states=["Start drawing line", "End"],
@@ -234,6 +234,7 @@ def update_text(text_id, value, rel_pos=None):
     if text_id in all_objects.keys():
         plt.remove(all_objects[text_id]['text'])
         rel_pos = all_objects[text_id]['pos']
+    print(min_xyz + rel_pos)
     new_text = add_text(value, pos=min_xyz+rel_pos, silent=True)
     all_objects[text_id] = {
         'text': new_text,
