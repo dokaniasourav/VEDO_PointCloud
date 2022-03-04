@@ -10,24 +10,24 @@ from scipy.optimize import minimize
 from scipy.optimize import basinhopping
 
 """
-Get average slop of points along a path:
+Get average slop of pt along a path:
 1. Select 'z' to enter slope avg mode
 2. Select an existing point to be the origin.
-3. Your mouse will be tracked at this point, and you can click another point to determine the line which you would like to get points from
-4. You will be asked how many points you will want to contribute to the average slope, and you can specify an number less than the number of available points, or select all. 
-5. Now the points used to calculate the average will be shown in yellow, and in the terminal it will print the average slope along their connected line. 
+3. Your mouse will be tracked at this point, and you can click another point to determine the line which you would like to get pt from
+4. You will be asked how many pt you will want to contribute to the average slope, and you can specify an number less than the number of available pt, or select all. 
+5. Now the pt used to calculate the average will be shown in yellow, and in the terminal it will print the average slope along their connected line. 
 """
 
 
 def keyfunc(evt):
     global points, cpoints, line, lines, selection_mode, plt, structure_created, prism_mesh, z_min, z_max, in_points, inz_points_outxy, above_points, below_points, above_points_outxy, below_points_outxy, pts1, pts2, origin_pre_struct, pre_struct_mode, struct, in_points, below_points, in_z_out_xy_points, above_points, tracking_mode, pre_struct_mode, box_selection_mode, connected_box_points_side1, connected_box_points_side2, top_face, vehicle_mode, slope_avg_mode
     if evt.keyPressed == 'c':
-        # clear points and lines
+        # clear pt and lines
         plt.remove([points, line], render=True)
         cpoints = []
         points = None
         line = None
-        printc("==== Cleared all points ====", c="r")
+        printc("==== Cleared all pt ====", c="r")
     elif evt.keyPressed == "v":
         print("========ENTER VEHICLE SELECTION MODE========")
         vehicle_mode = True
@@ -122,10 +122,10 @@ def onLeftClick(event):
 
                 plt.render()
                 tracking_mode = False
-                # Get actual points
+                # Get actual pt
                 print("GET LINE OF POINTS")
                 point_list = get_line_of_points(cpoints)
-                # Get average slope of points
+                # Get average slope of pt
                 print("GET AVG SLOPE")
                 avg_slope_on_line = get_avg_slope(point_list)
             elif len(cpoints) == 1:
@@ -199,7 +199,7 @@ def get_avg_slope(line_pts):
     # Get correct 2-d slope
     try:
         smooth_factor = int(input(
-            "How many points (+/- 1 due to divisibility) between the start and end do you want to contribute to the avg(num <= to length/ or 'all'). "))
+            "How many pt (+/- 1 due to divisibility) between the start and end do you want to contribute to the avg(num <= to length/ or 'all'). "))
         if smooth_factor > len(line_pts):
             smooth_factor = len(line_pts)
     except:

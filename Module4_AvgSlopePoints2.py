@@ -11,32 +11,35 @@ RD_1 = 20
 RD_2 = 15
 RD_3 = 10
 
-'''Get average slop of points along a path: 
+'''Get average slop of pt along a path: 
 
 1. Select 'z' to enter slope avg mode 
 2. Select an existing point to be the origin
 3. Your mouse will be tracked at this point, and you can click another point to determine the line which 
-   you would like to get points from 
-4. You will be asked how many points you will want to contribute to the average 
-   slope, and you can specify an number less than the number of available points, or select all 
-5. Now the points used to calculate the average will be shown in yellow, and in the terminal it will print the average 
+   you would like to get pt from 
+4. You will be asked how many pt you will want to contribute to the average 
+   slope, and you can specify an number less than the number of available pt, or select all 
+5. Now the pt used to calculate the average will be shown in yellow, and in the terminal it will print the average 
    slope along their connected line '''
 
 
 # Constantly checking if any meaningful key is selected
 def on_key_press(evt):
-    global two_points, line, plt, slope_avg_mode
-    printc(f'{evt.keyPressed} pressed: ')
+    global two_points, plt, slope_avg_mode, last_key_press, rectangle_mode
+    last_key_press = evt.keyPressed
+    # printc(f'{evt.keyPressed} pressed: ')
     if evt.keyPressed in ['c', 'C']:
-        # clear points and lines
-        plt.remove([two_points, line], render=True)
+        # clear pt and lines
+        plt.remove(plt.actors, render=True)
+        plt.sliders = []
+        plt.actors = []
         two_points = []
-        line = None
-        printc("==== Cleared all points ====", c="r")
+        plt.render()
+        printc("==== Cleared all pt ====", c="r")
     elif evt.keyPressed == 'Escape':
         plt.clear()
         exit()
-    elif evt.keyPressed  in ['z', 'Z']:
+    elif evt.keyPressed in ['z', 'Z']:
         # Enter slope average mode
         print("========ENTER SLOPE AVG MODE========")
         update_text('text1', 'SlopeAVG: ON')
@@ -45,18 +48,20 @@ def on_key_press(evt):
         reset_plot()
     elif evt.keyPressed == 't':
         my_camera_reset()
+    elif evt.keyPressed in ['R', 'r']:
+        rectangle_mode = True
     # elif evt.keyPressed in [str(e) for e in range(0,9)]:
     #     handle_inp()
 
 
 def on_left_click(event):
-    global first_pt, second_pt, two_points, line, last_pt, tracking_mode, slope_avg_mode, initialized
+    global first_pt, second_pt, two_points, last_pt, tracking_mode, slope_avg_mode, initialized, slider_selected, line_of_points
 
     if not initialized:
         update_text('text1', 'SlopeAVG: OFF', [2, 5, 5])
         update_text('text2', 'Tracking: OFF', [2, 10, 5])
         update_text('text3', '', [2, 15, 5])
-        update_text('text4', 'Hello', [max_xyz[0] - min_xyz[0] - 50, max_xyz[1] - min_xyz[1] - 50, 5])
+        update_text('text4', '', [max_xyz[0] - min_xyz[0] - 25, max_xyz[1] - min_xyz[1] - 5, 5], size=4)
         # add_point(max_xyz, col='red', is_text=True)
         initialized = True
         # plt.addButton(button_action, pos=(min_xyz[0] + 5, min_xyz[1] + 5, min_xyz[2] + 2),
@@ -68,85 +73,107 @@ def on_left_click(event):
     if event.picked3d is None:
         return
 
+    if slider_selected:
+        # Get actual pt
+        plt.sliders = []
+        plt.render()
+        print(f'Number of pt on the line: {len(line_of_points)} bw {two_points}')
+        get_avg_slope()
+        slider_selected = False
+        two_points = []
+        line_of_points = []
+
     if slope_avg_mode:
-        cpt = vector(list(event.picked3d))  # Make a vector of list, IDK why
+        cpt = vector(list(event.picked3d))
         two_points.append(cpt)
         add_point(cpt, size=RD_1, col='red')
         if len(two_points) == 1:
             last_pt = cpt
-
             # Select the first point
             first_pt = np.array([cpt[0], cpt[1], cpt[2]])
             print("Tracking started ... ")
             if not tracking_mode:
-                plt.addCallback('MouseMove', mouse_track)
+                # plt.addCallback('MouseMove', mouse_track)
                 update_text('text2', 'Tracking: ON', )
-                update_text('text3', 'Select 2nd point')
+                update_text('text4', 'Select 2nd point')
                 tracking_mode = True
         elif len(two_points) == 2:
             # Select second point and connect them with a line
-            plt.removeCallback('MouseMove')
+            # plt.removeCallback('MouseMove')
             tracking_mode = False
             slope_avg_mode = False
             update_text('text1', 'SlopeAVG: OFF')
             update_text('text2', 'Tracking: OFF')
             update_text('text3', '')
-            plt.remove(tracker_line)
+            for line in tracker_line:
+                plt.remove(line)
             add_line(two_points, width=2, col='white')
             second_pt = np.array([cpt[0], cpt[1], cpt[2]])
-            # Get actual points
-            point_list = get_line_of_points(two_points)
-            print(f'Number of points on the line: {len(point_list)} bw {two_points}')
-            # for pt in point_list:
-            #     print(pt)
-                # print('(', ', '.join(['%.2f' % e for e in (pt - min_xyz)]), ')')
+            set_line_of_points(two_points)
+            len_points = len(line_of_points)
+            plt.addSlider3D(
+                slider_y,
+                pos1=[min_xyz[0] + 5, min_xyz[1] - 20, min_xyz[2] + 10],
+                pos2=[max_xyz[0] - 20, min_xyz[1] - 20, min_xyz[2] + 10],
+                xmin=0, xmax=len_points,
+                s=0.04, c="blue",
+                title="Select a value for number of pt",
+                showValue=False
+            )
+            all_objects['slider'] = plt.actors[-1:]
+            slider_selected = True
 
-            # plt.addSlider3D(
-            #     slider_y,
-            #     pos1=[min_xyz[0] + 5, min_xyz[1], min_xyz[2] + 10],
-            #     pos2=[max_xyz[0] - 5, min_xyz[1], min_xyz[2] + 10],
-            #     xmin=0,
-            #     xmax=len(point_list),
-            #     s=0.04,
-            #     c="r",
-            #     title="Select a value for number of points",
-            # )
-
-            avg_slope_on_line = get_avg_slope(point_list)  # Get the average slope of points
-            print(f'Average slope of line: {avg_slope_on_line}')
-            update_text('text4', f'Slope: {avg_slope_on_line:.3f}\n'
-                                 f'Distance {dist_xyz(two_points[0], two_points[1]):.3f}')
-            two_points = []
-
-        plt.interactive = True
-        plt.render()
+        # plt.interactive = True
+        # plt.render()
 
         # except Exception as e:
-        #     # The points selected by the clicks must be already existing points
+        #     # The pt selected by the clicks must be already existing pt
         #     print(f'Error occurred: {e}')
+
+    if rectangle_mode:
+        cpt = vector(list(event.picked3d))
+        add_point(cpt)
+        two_points.append(cpt)
+        if len(two_points) == 1:
+            update_text('text3', 'Add next 2 points')
+            if not tracking_mode:
+                update_text('text2', 'Tracking: ON')
+                update_text('text4', 'Select 2nd point')
+                tracking_mode = True
+        elif len(two_points) == 2:
+            update_text('text4', 'Add one more point')
 
 
 def dist_xyz(point1, point2):
     if len(point1) != 3 or len(point2) != 3:
-        print('Bad Value of points in dist_xyz')
+        print('Bad Value of pt in dist_xyz')
         return None
 
     return sqrt((point1[0] - point2[0]) ** 2 +
-                    (point1[1] - point2[1]) ** 2 +
-                    (point1[2] - point2[2]) ** 2)
+                (point1[1] - point2[1]) ** 2 +
+                (point1[2] - point2[2]) ** 2)
 
 
 def dist_xy(point1, point2):
     if len(point1) < 2 or len(point1) < 2:
-        print('Bad Value of points in dist_xy')
+        print('Bad Value of pt in dist_xy')
         return None
 
     return sqrt((point1[0] - point2[0]) ** 2 +
                 (point1[1] - point2[1]) ** 2)
 
 
+def add_rectangle(points):
+    if len(points) < 3:
+        print('Insufficient points')
+        return
+
+
 def mouse_track(event):
-    global last_pt
+    global two_points, tracking_mode, rectangle_mode, tracker_line
+
+    if not tracking_mode:
+        return
 
     # Track the mouse if a point has already been selected
     if not event.actor:
@@ -154,14 +181,34 @@ def mouse_track(event):
         return
 
     mouse_point = event.picked3d
-    add_ruler([last_pt, mouse_point], width=3, col='red', size=3)
-    update_text('text3', f'Dist: {dist_xyz(last_pt, mouse_point):.3f}')
-    return
+    if not rectangle_mode:
+        for line in tracker_line:
+            plt.remove(line)
+        add_ruler([two_points[0], mouse_point], width=3, col='red', size=3)
+        update_text('text3', f'Dist: {dist_xyz(last_pt, mouse_point):.3f}')
+        return
 
+    if len(two_points) == 1:
+        for line in tracker_line:
+            plt.remove(line)
+        add_ruler([two_points[0], mouse_point], width=3, col='yellow', size=3)
+        update_text('text3', f'Dist: {dist_xyz(last_pt, mouse_point):.3f}')
+        return
 
-# The get_line_of_points takes the two endpoints, then does its best to get the points along the path of the line
-# that are on the ground of the point cloud Does this by iterating through the points that make up the line in
+    if len(two_points) == 2:
+        for line in tracker_line:
+            plt.remove(line)
+        add_ruler([two_points[0], two_points[1]], width=3, col='yellow', size=3)
+        # Calculating distance of new point from the line drawn:
+
+        # add_ruler([mouse_point[0], ]], width=3, col='yellow', size=3)
+        update_text('text3', f'Dist: {dist_xyz(last_pt, mouse_point):.3f}')
+        return
+
+# The get_line_of_points takes the two endpoints, then does its best to get the pt along the path of the line
+# that are on the ground of the point cloud Does this by iterating through the pt that make up the line in
 # space, then getting the closest point that is actually a part of the mesh to that point
+
 
 def add_point(pos, size=RD_1, col='red', silent=False, is_text=False):
     new_point = Point(pos, r=size, c=col)  # Point to be added, default radius and default color
@@ -172,7 +219,7 @@ def add_point(pos, size=RD_1, col='red', silent=False, is_text=False):
                           s=2, pos=pos2, depth=0.1, alpha=1.0, c='w')
         plt.add([new_text])
 
-    plt.render()
+    # plt.render()
     if not silent:
         print(f'Added point: {pos - min_xyz}')
     return new_point
@@ -182,7 +229,7 @@ def add_text(text, pos, silent=False, size=2):
     pos[2] += 1
     tx1 = Text3D(txt=text, s=size, pos=pos, depth=0.1, alpha=1.0)
     plt.add([tx1])
-    plt.render()
+    # plt.render()
     if not silent:
         print(f'Text Rendered at {pos - min_xyz}')
     return tx1
@@ -193,55 +240,52 @@ def add_line(points, col='red', width=5, silent=False):
     if len(points) >= 2:
         new_line = Line(points[0], points[1], closed=False, lw=width, c=col, alpha=1.0)
         plt.add([new_line])
-        plt.render()
+        # plt.render()
         if not silent:
             print(f'Added {col} line bw {points[0] - min_xyz} and {points[1] - min_xyz}')
     else:
-        print('Invalid number of points')
+        print('Invalid number of pt')
     return new_line
 
 
 def add_lines(points, col='yellow', width=4, silent=True):
     if len(points) < 2:
-        print('Invalid number of points')
+        print('Invalid number of pt')
         return None
     new_lines = []
     for i in range(1, len(points)):
-        new_lines.append(add_line([points[i-1], points[i]], col=col, width=width, silent=silent))
+        new_lines.append(add_line([points[i - 1], points[i]], col=col, width=width, silent=silent))
     return new_lines
 
 
 def add_ruler(points, col='white', width=5, size=2):
     global tracker_line
     if len(points) >= 2:
-        plt.remove(tracker_line)
         line_text = f'Dist: {dist_xyz(points[0], points[1]):.2f}'
         start = [points[0][0], points[0][1], points[0][2] + 1]
         ended = [points[1][0], points[1][1], points[1][2] + 1]
-        tracker_line = Ruler(start, ended, lw=width, c=col, alpha=1.0, s=size, label=line_text)
-        plt.add([tracker_line])
-        # print(f'Added ruler')
-        plt.render()
-        # print(f'Added {col} line bw {points[0]} and {points[1]}')
+        new_line = Ruler(start, ended, lw=width, c=col, alpha=1.0, s=size, label=line_text)
+        plt.add([new_line])
+        tracker_line.append(new_line)
+        return new_line
     else:
-        print('Invalid number of points')
+        print('Invalid number of pt')
 
 
-def update_text(text_id, value, rel_pos=None):
+def update_text(text_id, value, rel_pos=None, size=2):
     global all_objects
     if rel_pos is None:
         rel_pos = [5, 5, 5]
     if text_id in all_objects.keys():
         plt.remove(all_objects[text_id]['text'])
         rel_pos = all_objects[text_id]['pos']
-    print(min_xyz + rel_pos)
-    new_text = add_text(value, pos=min_xyz+rel_pos, silent=True)
+    new_text = add_text(value, pos=min_xyz + rel_pos, silent=True, size=size)
     all_objects[text_id] = {
         'text': new_text,
         'pos': rel_pos
     }
     plt.add(new_text)
-    plt.render()
+    # plt.render()
 
 
 def print_point(point, acc=2):
@@ -249,35 +293,35 @@ def print_point(point, acc=2):
 
 
 # noinspection DuplicatedCode
-def get_line_of_points(point_values):
+def set_line_of_points(point_values):
+    global line_of_points
     # Calculates a unit of direction along line
     x_len = point_values[1][0] - point_values[0][0]
     y_len = point_values[1][1] - point_values[0][1]
 
     # magnitude is the distance in XY plane
-    magnitude = math.sqrt((x_len ** 2) + (y_len ** 2))
+    magnitude = math.sqrt((x_len**2) + (y_len**2))
     x_unit = x_len / magnitude
     y_unit = y_len / magnitude
 
-    # Plot starting point
-    # add_point(point_values[0], col='yellow')
+    print(f'X unit = {x_unit} and Y unit = {y_unit}')
 
     cur_point = point_values[0]
-    line_pts = [cur_point]
-    # Iterate through points in line and save them in list
-    while round(cur_point[0]) != round(point_values[1][0]) and\
+    line_of_points = [cur_point]
+    # Iterate through pt in line and save them in list
+    while round(cur_point[0]) != round(point_values[1][0]) and \
             round(cur_point[1]) != round(point_values[1][1]):
-        cur_point = [cur_point[0] + x_unit, cur_point[1] + y_unit, cur_point[2]]
-        line_pts.append(cloud.closestPoint(cur_point))
-    line_pts.append(point_values[1])
+        new_approx_point = [cur_point[0] + x_unit, cur_point[1] + y_unit, cur_point[2]]
+        new_actual_point = cloud.closestPoint(cur_point)
+        print(dist_xyz(cur_point, new_actual_point))
+        cur_point = new_approx_point
+        line_of_points.append(new_actual_point)
 
-    print(f'Get line of points, Input = {point_values}')
-    for i in range(1, len(line_pts)):
-        print(f' XX = {(line_pts[i][0]-line_pts[i-1][0]):.2f},'
-              f' YY = {(line_pts[i][1]-line_pts[i-1][1]):.2f},'
-              f' ZZ = {(line_pts[i][2]-line_pts[i-1][2]):.2f}')
-
-    return line_pts
+    # print(f'Get line of pt, Input = {point_values}')
+    # for i in range(1, len(line_pts)):
+    #     print(f' XX = {(line_pts[i][0] - line_pts[i - 1][0]):.2f},'
+    #           f' YY = {(line_pts[i][1] - line_pts[i - 1][1]):.2f},'
+    #           f' ZZ = {(line_pts[i][2] - line_pts[i - 1][2]):.2f}')
 
 
 # slope calculation
@@ -291,57 +335,38 @@ def get_slope(pt1, pt2, run):
     return slope
 
 
-# Get the average slope of from point to point for a specified number of points on the line
-def get_avg_slope(line_pts):
-    global first_pt, second_pt, smooth_factor
-    # Determine if y or x is longer on the line
-    # first_point_x = line_pts[0][0]
-    # last_point_x = line_pts[-1][0]
-    # x_range = abs(first_point_x - last_point_x)
-    #
-    # first_point_y = line_pts[0][1]
-    # last_point_y = line_pts[-1][1]
-    # y_range = abs(first_point_y - last_point_y)
+# Get the average slope of from point to point for a specified number of pt on the line
+def get_avg_slope():
+
+    global first_pt, second_pt, smooth_factor, line_of_points
 
     # Get correct 2-d slope where z is the slopes "rise" and the longer of x and y will be the "run"
     try:
-        update_text('text3', 'Enter num points: ')
-        smooth_factor = int(input(f'Enter the number of points bw 1 and {len(line_pts) - 1}'))
-        # "How many points (+/- 1 due to divisibility)" \
-        # " between the start and end do you want to contribute" \
-        # " to the avg(num <= to length/ or 'all'). "
-        if smooth_factor >= len(line_pts):
-            smooth_factor = len(line_pts) - 1
+        update_text('text3', 'Enter num pt:')
+        if smooth_factor >= len(line_of_points):
+            smooth_factor = len(line_of_points) - 1
     except Exception as e:
         print(f'Error occurred: {e}')
-        smooth_factor = len(line_pts) - 1
+        smooth_factor = len(line_of_points) - 1
 
     if smooth_factor == 0:
         pts_to_use = [first_pt, second_pt]
     else:
-        try:
-            # Get a step factor to end up with the specified number of points
-            # step_factor = len(line_pts) // (smooth_factor + 1)
-            step_factor = round(len(line_pts) / (smooth_factor + 1))
-            pts_to_use = line_pts[0::step_factor]
-            print(f'Smooth factor = {smooth_factor}, steps = {step_factor}')
-        except Exception as e:
-            print(f'Error occurred: {e}')
-            step_factor = round(len(line_pts) / smooth_factor)
-            pts_to_use = line_pts[0::step_factor]
-
-        # pts_to_use = pts_to_use[1:-1]   # Remove the first and last points
+        step_factor = round(len(line_of_points) / (smooth_factor + 1))
+        pts_to_use = line_of_points[0::step_factor]
+        print(f'Smooth factor = {smooth_factor}, steps = {step_factor}')
         if len(pts_to_use) < 2:
             print('Error in point selection. Aborting')
             return
-        print(f'Using {len(pts_to_use)} for calculation, points are {pts_to_use}')
-    # Loop through points and plot them
+        print(f'Using {len(pts_to_use)} for calculation')
+    # Loop through pt and plot them
 
-    print(f'Rendering {len(pts_to_use)} on map')
-    update_text('text3', f'Rendering {len(pts_to_use)} points')
+    update_text('text3', f'Rendering {len(pts_to_use)} pt')
+    print(f'Rendering {len(pts_to_use)} on map ', end='')
     for p in pts_to_use:
         add_point(p, size=RD_3, col='g', silent=True)
-        plt.render()
+        print('.', end='')
+    print(' Done!')
     add_lines(pts_to_use)
     slopes_bw_points = []
 
@@ -362,7 +387,7 @@ def get_avg_slope(line_pts):
         xy_dist = math.sqrt(((pt['X1'] - pt['X2']) ** 2) + ((pt['Y1'] - pt['Y2']) ** 2))
         z_dist = abs(pt['Z1'] - pt['Z2'])
         if xy_dist == 0:
-            xy_dist = 0.000001
+            xy_dist = 0.00000001
         slopes_bw_points[i]['Slope'] = (z_dist / xy_dist)
         total_slope += (z_dist / xy_dist)
 
@@ -388,7 +413,7 @@ def get_avg_slope(line_pts):
 
     csv_file = f'Slope_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
     try:
-        with open(csv_file, 'w') as csv_file:
+        with open(csv_file, 'w', newline='', encoding='utf-8') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=['X1', 'Y1', 'Z1', 'X2', 'Y2', 'Z2', 'Slope'])
             writer.writeheader()
             for data in slopes_bw_points:
@@ -399,22 +424,21 @@ def get_avg_slope(line_pts):
     result = total_slope / len(slopes_bw_points)
 
     # pd_slope_array.to_csv(f'calc_slope_{result}.csv')
-    print(f'Average slope between {len(pts_to_use)} points = {result}, \n List of slopes for indices: ')
+    print(f'Average slope between {len(pts_to_use)} pt = {result}, \n List of slopes for indices: ')
     # print(pd_slope_array)
     return result
 
 
 def reset_plot():
-    global line, two_points, tracking_mode
+    global two_points, tracking_mode
     print('Removing all objects from map')
-    plt.removeCallback('MouseMove')
+    # plt.removeCallback('MouseMove')
     plt.clear()
     plt.axes = 1
     plt.add([mesh, cloud]).render()
     update_text('text1', 'SlopeAVG: OFF')
     update_text('text2', 'Tracking: OFF')
     update_text('text3', '')
-    line = None
     two_points = []
     tracking_mode = False
 
@@ -431,25 +455,32 @@ def my_camera_reset():
     plt.camera.SetViewUp([0.0, 1.0, 0.0])
     plt.camera.SetDistance(293.382)
     plt.camera.SetClippingRange([218.423, 388.447])
-    plt.render()
+    # plt.render()
     print('Camera Reset Done')
 
 
 def slider_y(widget, event):
+    global smooth_factor
     value = widget.GetRepresentation().GetValue()
-    # mesh.y(value)  # set y coordinate position
-    print(f'Slider action val = {value}')
+    smooth_factor = round(value)
+    update_text('text3', f'Selected = {round(smooth_factor)}')
 
 
 ''' All the global variables declared '''
-line = None
 two_points = []
-tracker_line = None
-tracking_mode = False
+last_key_press = None
+tracker_line = []
+slider_selected = False
+smooth_factor = 0
 first_pt = None
 second_pt = None
+
 slope_avg_mode = False
+tracking_mode = False
+rectangle_mode = False
+
 last_pt = [0, 0, 0]
+line_of_points = []
 initialized = False
 all_objects = {
 }
@@ -475,7 +506,7 @@ dif_xyz = np.subtract(cloud.points(), min_xyz)
 cloud.legend('My cloud map')
 start_time = time.time()
 mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some mesh object with low alpha
-print(f'Mesh created in {time.time() - start_time} sec for {len(cloud.points())} points')
+print(f'Mesh created in {time.time() - start_time} sec for {len(cloud.points())} pt')
 
 cloud_center_1 = (cloud_center[0], cloud_center[1], cloud_center[2] + 450)
 # cloud_center_2 = [cloud_center[0], cloud_center[1], cloud_center[2]+50]
@@ -488,11 +519,10 @@ cam = dict(pos=cloud_center_1,
 plt = Plotter(pos=[0, 0], size=[500, 1080])
 plt.addCallback('KeyPress', on_key_press)
 plt.addCallback('LeftButtonPress', on_left_click)
+plt.addCallback('MouseMove', mouse_track)
 # print('Once the program launches, press \'h\' for list of default commands')
 plt.show([mesh, cloud], interactorStyle=0, bg='white', axes=1, zoom=1.5, interactive=True)  # , camera=cam)
 exit()
-
-
 
 # interactive()
 # print('Finished execution')
