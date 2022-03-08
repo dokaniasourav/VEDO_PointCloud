@@ -56,7 +56,7 @@
 #
 # def on_left_click(event):
 #     global first_pt, second_pt, two_points, last_pt, tracking_mode, slope_avg_mode
-#     global initialized, slider_selected, line_of_points, smooth_factor
+#     global initialized, slider_selected, max_points, smooth_factor
 #
 #     if not initialized:
 #         update_text('text1', '', [2, -15, 5])
@@ -81,12 +81,12 @@
 #         # Get actual pt
 #         plt.sliders = []
 #         plt.render()
-#         print(f'Number of pt on the line: {len(line_of_points)} bw {two_points}')
+#         print(f'Number of pt on the line: {len(max_points)} bw {two_points}')
 #         update_text('text4', f'Please wait ...')
 #         get_avg_slope()
 #         slider_selected = False
 #         two_points = []
-#         line_of_points = []
+#         max_points = []
 #
 #     if slope_avg_mode:
 #         cpt = vector(list(event.picked3d))
@@ -118,13 +118,13 @@
 #                 slider_y,
 #                 pos1=[min_xyz[0] + 10, max_xyz[1] + 5, min_xyz[2] + 10],
 #                 pos2=[max_xyz[0] - 15, max_xyz[1] + 5, min_xyz[2] + 10],
-#                 xmin=0, xmax=len(line_of_points),
+#                 xmin=0, xmax=len(max_points),
 #                 s=0.04, c="blue",
 #                 title="Select a value for number of pt",
 #                 showValue=False
 #             )
 #             update_text('text4', 'Select no of points on slider')
-#             update_text('text5', f'Max points = {len(line_of_points)}')
+#             update_text('text5', f'Max points = {len(max_points)}')
 #             all_objects['slider'] = plt.actors[-1:]
 #             smooth_factor = 0
 #             slider_selected = True
@@ -299,7 +299,7 @@
 #
 # # noinspection DuplicatedCode
 # def set_line_of_points(point_values):
-#     global line_of_points
+#     global max_points
 #     # Calculates a unit of direction along line
 #     x_len = point_values[1][0] - point_values[0][0]
 #     y_len = point_values[1][1] - point_values[0][1]
@@ -314,7 +314,7 @@
 #     made_better = 0
 #     z_offset = 0
 #     cur_point = point_values[0]
-#     line_of_points = [cur_point]
+#     max_points = [cur_point]
 #     # Iterate through pt in line and save them in list
 #     while round(cur_point[0]) != round(point_values[1][0]) and \
 #             round(cur_point[1]) != round(point_values[1][1]):
@@ -322,7 +322,7 @@
 #         new_actual_point = cloud.closestPoint(cur_point)
 #         xyz_dist_temp = dist_xyz(cur_point, new_actual_point)
 #         if 4 > xyz_dist_temp > 0.001:
-#             line_of_points.append(new_actual_point)
+#             max_points.append(new_actual_point)
 #             z_offset = new_actual_point[2] - new_approx_point[2]
 #         else:
 #             # print(f'Distance: {xyz_dist_temp}, for point {new_approx_point}. Got {new_actual_point}')
@@ -331,7 +331,7 @@
 #             if len(new_actual_points) > 1:
 #                 if 4 > dist_xyz(cur_point, new_actual_points[0]) > 0.001:
 #                     made_better += 1
-#                     line_of_points.append(new_actual_points[0])
+#                     max_points.append(new_actual_points[0])
 #                     z_offset = new_actual_points[0][2] - new_approx_point[2]
 #
 #         cur_point = new_approx_point
@@ -345,17 +345,17 @@
 #
 # # Get the average slope of from point to point for a specified number of pt on the line
 # def get_avg_slope():
-#     global first_pt, second_pt, smooth_factor, line_of_points
+#     global first_pt, second_pt, smooth_factor, max_points
 #
 #     update_text('text3', 'Enter num pt:')
-#     if smooth_factor >= len(line_of_points):
-#         smooth_factor = len(line_of_points) - 1
+#     if smooth_factor >= len(max_points):
+#         smooth_factor = len(max_points) - 1
 #
 #     if smooth_factor == 0:
 #         pts_to_use = [first_pt, second_pt]
 #     else:
-#         step_factor = round(len(line_of_points) / (smooth_factor + 1))
-#         pts_to_use = line_of_points[0::step_factor]
+#         step_factor = round(len(max_points) / (smooth_factor + 1))
+#         pts_to_use = max_points[0::step_factor]
 #         print(f'Smooth factor = {smooth_factor}, steps = {step_factor}')
 #         if len(pts_to_use) < 2:
 #             print('Error in point selection. Aborting')
@@ -470,10 +470,10 @@
 # def slider_y(widget, event):
 #     global smooth_factor
 #     value = widget.GetRepresentation().GetValue()
-#     # value = (value*value)/len(line_of_points)
+#     # value = (value*value)/len(max_points)
 #     smooth_factor = round(value)
 #     update_text('text4', f'{round(smooth_factor)} points selected')
-#     update_text('text5', f'Max points = {len(line_of_points)}')
+#     update_text('text5', f'Max points = {len(max_points)}')
 #
 #
 # ''' All the global variables declared '''
@@ -490,7 +490,7 @@
 # rectangle_mode = False
 #
 # last_pt = [0, 0, 0]
-# line_of_points = []
+# max_points = []
 # initialized = False
 # all_objects = {
 # }
