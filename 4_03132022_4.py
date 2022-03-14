@@ -558,34 +558,25 @@ def main():
         filename = sys.argv[1]
         if not os.path.isfile(filename):
             print('File ', filename, ' does not exist')
+            exit(1)
 
-    cloud = load(filename).pointSize(4.0).alpha(0.8)
+    cloud = load(filename).pointSize(4.0)
     print(f'Loaded file {filename} in {time.time() - start_time} sec')
-
     start_time = time.time()
     cloud_center = cloud.centerOfMass()  # Center of mass for the whole cloud
-
     print(f'Center of mass = {cloud_center}, calc in {time.time() - start_time} sec')
 
     loc_plotter.min_xyz = np.min(cloud.points(), axis=0)
     loc_plotter.max_xyz = np.max(cloud.points(), axis=0)
-    # dif_xyz = np.subtract(cloud.points(), loc_plotter.min_xyz)
     print(loc_plotter.max_xyz - loc_plotter.min_xyz)
 
     start_time = time.time()
     # new_mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some new_mesh object with low alpha
-    # dump_filename = filename+'__mesh_dump.txt'
-    # if os.path.isfile(dump_filename) and os.path.getsize(dump_filename) > 10000:
-    #     print('Found dump file from previous iteration, reusing...')
-    #     file_d = open(dump_filename, 'wb')
-    #     new_mesh = dill.load(file_d)
-    #     file_d.close()
-    # else:
-    #     new_mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some new_mesh object with low alpha
-    #     file_d = open(dump_filename, 'wb')
-    #     dill.dump(new_mesh, file_d)
-    #     file_d.close()
-    pic = Picture('3_1.png')
+    pic_name = '3_1.png'
+    if not os.path.isfile(pic_name):
+        print('File ', pic_name, ' does not exist')
+        exit(1)
+    pic = Picture(pic_name)
     dim = pic.dimensions()
     range_xyz = loc_plotter.max_xyz - loc_plotter.min_xyz
     scale_fact = [range_xyz[0] / dim[0], range_xyz[1] / dim[1], 1]
@@ -614,7 +605,7 @@ def main():
                clippingRange=(218.423, 388.447),
                viewAngle=60
                )
-    plt.show([cloud], interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True,
+    plt.show([cloud, pic], interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True,
              camera=cam)
     print('Finished execution')
     exit()
