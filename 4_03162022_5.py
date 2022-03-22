@@ -1,15 +1,14 @@
-import os.path
-from vedo import *
-import vedo
-import numpy as np
-from datetime import datetime
+import multiprocessing
+import os
 import sys
-import time
 import csv
-import tkinter as tk
+import time
 import random
-from tkinter import filedialog, simpledialog
-
+import numpy as np
+import tkinter as tk
+from vedo import *
+from datetime import datetime
+from tkinter import filedialog
 # import dill
 # import concurrent.futures
 # import threading
@@ -174,7 +173,7 @@ def on_left_click(event):
                 plt.remove(line)
             for i in range(0, 4):
                 add_point(rect_points[i], size=RD_4, col='Green')
-                add_line([rect_points[i], rect_points[i-1]], width=3, col='Yellow')
+                add_line([rect_points[i], rect_points[i - 1]], width=3, col='Yellow')
 
 
 def dist_xyz(point1, point2):
@@ -240,7 +239,7 @@ def mouse_track(event):
         rect_points = get_rectangle([two_points[0], two_points[1], mouse_point])
 
         for i in range(0, 4):
-            add_ruler([rect_points[i], rect_points[i-1]], width=3, col='white', size=TEXT_SIZE)
+            add_ruler([rect_points[i], rect_points[i - 1]], width=3, col='white', size=TEXT_SIZE)
         return
 
 
@@ -263,6 +262,7 @@ def get_rectangle(points):
     new_point_2 = point_3 - (point_12 * (dist_xyz(point_2, point_3) * cosine_2)) / dist_xyz(point_1, point_2)
     update_text('text4', f'Angles = {cosine_1:.3f} and {cosine_2:.3f}')
     return [points[1], points[0], new_point_1, new_point_2]
+
 
 # The get_line_of_points takes the two endpoints, then does its best to get the pt along the path of the line
 # that are on the ground of the point cloud Does this by iterating through the pt that make up the line in
@@ -404,7 +404,8 @@ def get_avg_slope():
                 z_offset = new_actual_point[2] - new_approx_point[2]
             else:
                 bad_point_count += 1
-                new_approx_point = [cur_point[0] + (x_unit * 1.1), cur_point[1] + (y_unit * 1.1), cur_point[2] + z_offset]
+                new_approx_point = [cur_point[0] + (x_unit * 1.1), cur_point[1] + (y_unit * 1.1),
+                                    cur_point[2] + z_offset]
                 new_actual_points = cloud.closestPoint(new_approx_point, radius=acceptable_dist)
                 if len(new_actual_points) > 1:
                     made_better += 1
@@ -499,7 +500,7 @@ def get_avg_slope():
     os.makedirs(dir_name, exist_ok=True)
     csv_file_name = f'Slope_{datetime.now().strftime("%Y%m%d%H%M%S")}_{len(points_to_use)}_points.csv'
     try:
-        with open(dir_name+'\\'+csv_file_name, 'w', newline='', encoding='utf-8') as csv_file:
+        with open(dir_name + '\\' + csv_file_name, 'w', newline='', encoding='utf-8') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=[e for e in slopes_bw_points[0].keys()])
             writer.writeheader()
             for data in slopes_bw_points:
@@ -570,7 +571,7 @@ def handle_timer(event):
         if ind < total_points:
             add_point(all_tasks[key]['points'][ind], size=RD_3, col='g', silent=True)
             all_tasks[key]['index'] += 1
-            update_text('text6', f'Added {ind+1} out of {total_points} points')
+            update_text('text6', f'Added {ind + 1} out of {total_points} points')
         else:
             del all_tasks[key]
             update_text('text6', f'Done adding {total_points} points')
@@ -579,7 +580,7 @@ def handle_timer(event):
     if key in all_tasks.keys():
         ind = all_tasks[key]['index']
         if ind < len(all_tasks[key]['points']):
-            add_line([all_tasks[key]['points'][ind-1], all_tasks[key]['points'][ind]],
+            add_line([all_tasks[key]['points'][ind - 1], all_tasks[key]['points'][ind]],
                      col='yellow', width=4, silent=True)
             all_tasks[key]['index'] += 1
         else:
@@ -589,72 +590,80 @@ def handle_timer(event):
         plt.timerCallback('destroy', timerId=all_tasks['timer_id'])
 
 
-class LocalPlotter:
-    slope_avg_mode = False
-    tracking_mode = False
-    rectangle_mode = False
-    slider_selected = False
-    initialized = False
-    min_xyz: []
-    max_xyz: []
-    last_key_press = None
-    smooth_factor = 0
-    temp_dict: {}
-
-
-''' All the global variables declared '''
-two_points = []
-tracker_lines = []
-plotted_points = []
-plotted_lines = []
-cloud = []
-plt = Plotter(pos=[0, 0], size=[600, 1080])
-loc_plotter = LocalPlotter()
-max_points = 0
-all_objects = {
-}
-all_tasks = {
-}
-''' End of variable declarations '''
-
-
-def main():
-    # settings.enableDefaultKeyboardCallbacks = False
-    global cloud, plt, loc_plotter
-
-    print(f'Program started :')
+def get_file_names():
     tk.Tk().withdraw()
-
     if len(sys.argv) < 2:
         print('No PLY file specified: opening prompt')
-        filename = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the PLY File",
-                                              filetypes=[('Point-cloud file', ('.ply', '.pcd'))])
-        # filename = 't3.ply'
+        file_1 = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the PLY File",
+                                            filetypes=[('Point-cloud file', ('.ply', '.pcd'))])
+        # file_1 = 't3.ply'
     else:
-        filename = sys.argv[1]
+        file_1 = sys.argv[1]
 
     if len(sys.argv) < 3:
         print('No Image file specified: opening prompt')
-        pic_name = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the Image File",
-                                              filetypes=[('Image Files', ('.png', '.jpg'))])
+        file_2 = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the Image File",
+                                            filetypes=[('Image Files', ('.png', '.jpg'))])
         # pic_name = '3_1.png'
     else:
-        pic_name = sys.argv[2]
+        file_2 = sys.argv[2]
 
-    if not os.path.isfile(filename) or not os.path.isfile(pic_name):
-        print('Invalid file path: ', filename, ' Not found!')
+    if not os.path.isfile(file_1):
+        print('Invalid file path: ', file_1, ' Not found!')
         exit(1)
 
+    if not os.path.isfile(file_2):
+        print('Invalid file path: ', file_1, ' Not found!')
+        exit(1)
+
+    return [file_1, file_2]
+
+
+def toggle_state(text):
+    print(text)
+
+
+def gui_main(inp_q, out_q):
+    root = tk.Tk()
+    root.geometry('400x300')
+    root.title('Main menu')
+
+    l1 = tk.Label(root, text="Enter a value ", borderwidth=2, font=10)
+    l1.pack()
+
+    text = tk.StringVar()
+    e = tk.Entry(root, textvariable=text)
+    e.bind('<Key>', key_press)
+    e.pack()
+
+    button_1 = tk.Button(root, text="Enter Slope AVG Mode", command=lambda: toggle_state('Slope AVG Mode'))
+
+    root.mainloop()
+
+
+plt = Plotter(pos=[0, 0], size=[600, 1080])
+temp = open('temp', mode='w+')
+temp.close()
+cloud = load('temp')
+
+
+def plt_main(inp_q, out_q):
+    global cloud, plt
+
+    print(f'Program started :')
+    settings.enableDefaultKeyboardCallbacks = False
+
+    [filename, pic_name] = get_file_names()
     print(f'Selected PLY file: {filename} and picture: {pic_name}')
 
-    start_time = time.time()
+    ################################################################################################
+    st = time.time()
     cloud = load(filename).pointSize(4.0)
-    print(f'Loaded cloud {filename} in {time.time() - start_time} sec')
+    print(f'Loaded cloud {filename} in {time.time() - st} sec')
 
-    start_time = time.time()
+    st = time.time()
     pic = Picture(pic_name)
-    dim = pic.dimensions()
-    print(f'Loaded picture {pic_name} in {time.time() - start_time} sec')
+    print(f'Loaded picture {pic_name} in {time.time() - st} sec')
 
     start_time = time.time()
     cloud_center = cloud.centerOfMass()  # Center of mass for the whole cloud
@@ -664,16 +673,15 @@ def main():
     loc_plotter.max_xyz = np.max(cloud.points(), axis=0)
     print(loc_plotter.max_xyz - loc_plotter.min_xyz)
 
-    # start_time = time.time()
+    # st = time.time()
     # new_mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some new_mesh object with low alpha
+    dim = pic.dimensions()
     range_xyz = loc_plotter.max_xyz - loc_plotter.min_xyz
     scale_fact = [range_xyz[0] / dim[0], range_xyz[1] / dim[1], 1]
     pic = pic.scale(scale_fact).pos(loc_plotter.min_xyz[0] - 1, loc_plotter.min_xyz[1] + 0.2,
                                     loc_plotter.min_xyz[2]).rotateZ(2)
-    # print(f'Mesh created in {time.time() - start_time} sec for {len(cloud.points())} points')
+    # print(f'Mesh created in {time.time() - st} sec for {len(cloud.points())} points')
 
-    vedo.settings.enableDefaultKeyboardCallbacks = False
-    plt = Plotter(pos=[0, 0], size=[600, 1080])
     plt.addCallback('KeyPress', on_key_press)
     plt.addCallback('LeftButtonPress', on_left_click)
     plt.addCallback('MouseMove', mouse_track)
@@ -693,13 +701,71 @@ def main():
                clippingRange=(218.423, 388.447),
                viewAngle=60
                )
-    plt.show([cloud], interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True,
+    plt.show([cloud, pic], interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True,
              camera=cam)
-    print('Finished execution')
-    exit()
 
 
-if __name__ == "__main__":
+def key_press(event):
+    global loc_plotter
+    loc_plotter.last_key_press = event.char
+    print(event)
+
+
+class LocalPlotter:
+    slope_avg_mode = False
+    tracking_mode = False
+    rectangle_mode = False
+    slider_selected = False
+    initialized = False
+    min_xyz: []
+    max_xyz: []
+    cloud_center: []
+    last_key_press = None
+    smooth_factor = 0
+    temp_dict: {}
+
+
+''' All the global variables declared '''
+two_points = []
+tracker_lines = []
+plotted_points = []
+plotted_lines = []
+loc_plotter = LocalPlotter()
+max_points = 0
+all_objects = {
+}
+all_tasks = {
+}
+''' End of variable declarations '''
+
+################################################################################################
+############################## MAIN LIKE SECTION ###############################################
+
+# gui_thread = threading.Thread(target=gui_main)
+# print('Starting the GUI Thread')
+# gui_thread.start()
+
+# plotter_thread = threading.Thread(target=plotter_main)
+# print('Starting plotter thread')
+# plotter_thread.start()
+
+################################################################################################
+
+
+def main():
+    inp_q = multiprocessing.Queue()
+    out_q = multiprocessing.Queue()
+
+    gui_process = multiprocessing.Process(target=gui_main, args=(inp_q, out_q))
+    plt_process = multiprocessing.Process(target=plt_main, args=(inp_q, out_q))
+
+    gui_process.start()
+    plt_process.start()
+
+    gui_process.join()
+    plt_process.join()
+
+
+if __name__ == '__main__':
     main()
-
-
+    exit()
