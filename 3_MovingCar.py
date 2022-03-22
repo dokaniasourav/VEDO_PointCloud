@@ -71,7 +71,7 @@ def keyfunc(evt):
         connected_box_points_side2 = []
         first_box_con_point = None
 
-    # elif evt.keyPressed == 's':
+    # elif event.keyPressed == 's':
     #     with open(outfl, 'w') as f:
     #         # uncomment the second line to save the line instead (with 100 pts)
     #         f.write(str(vector(cpoints)[:,(0,1)])+'\n')

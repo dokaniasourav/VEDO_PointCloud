@@ -24,11 +24,11 @@
 #
 #
 # # Constantly checking if any meaningful key is selected
-# def on_key_press(evt):
+# def on_key_press(event):
 #     global two_points, plt, slope_avg_mode, last_key_press, rectangle_mode
-#     last_key_press = evt.keyPressed
-#     # printc(f'{evt.keyPressed} pressed: ')
-#     if evt.keyPressed in ['c', 'C']:
+#     last_key_press = event.keyPressed
+#     # printc(f'{event.keyPressed} pressed: ')
+#     if event.keyPressed in ['c', 'C']:
 #         # clear pt and lines
 #         plt.remove(plt.actors, render=True)
 #         plt.sliders = []
@@ -36,21 +36,21 @@
 #         two_points = []
 #         plt.render()
 #         printc("==== Cleared all pt ====", c="r")
-#     elif evt.keyPressed == 'Escape':
+#     elif event.keyPressed == 'Escape':
 #         plt.clear()
 #         exit()
-#     elif evt.keyPressed in ['z', 'Z']:
+#     elif event.keyPressed in ['z', 'Z']:
 #         # Enter slope average mode
 #         print("========ENTER SLOPE AVG MODE========")
 #         update_text('text5', 'Slope averaging is ON')
 #         slope_avg_mode = True
-#     elif evt.keyPressed in ['u', 'U']:
+#     elif event.keyPressed in ['u', 'U']:
 #         reset_plot()
-#     elif evt.keyPressed == 't':
+#     elif event.keyPressed == 't':
 #         my_camera_reset()
-#     # elif evt.keyPressed in ['R', 'r']:
+#     # elif event.keyPressed in ['R', 'r']:
 #     #     rectangle_mode = True
-#     # elif evt.keyPressed in [str(e) for e in range(0,9)]:
+#     # elif event.keyPressed in [str(e) for e in range(0,9)]:
 #     #     handle_inp()
 #
 #

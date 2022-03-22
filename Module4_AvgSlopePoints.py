@@ -19,22 +19,22 @@
 # """
 #
 #
-# def keyfunc(evt):
+# def keyfunc(event):
 #     global points, cpoints, line, lines, selection_mode, plt, structure_created, prism_mesh, z_min, z_max, in_points, inz_points_outxy, above_points, below_points, above_points_outxy, below_points_outxy, pts1, pts2, origin_pre_struct, pre_struct_mode, struct, in_points, below_points, in_z_out_xy_points, above_points, tracking_mode, pre_struct_mode, box_selection_mode, connected_box_points_side1, connected_box_points_side2, top_face, vehicle_mode, slope_avg_mode
-#     if evt.keyPressed == 'c':
+#     if event.keyPressed == 'c':
 #         # clear pt and lines
 #         plt.remove([points, line], render=True)
 #         cpoints = []
 #         points = None
 #         line = None
 #         printc("==== Cleared all pt ====", c="r")
-#     elif evt.keyPressed == "v":
+#     elif event.keyPressed == "v":
 #         print("========ENTER VEHICLE SELECTION MODE========")
 #         vehicle_mode = True
-#     elif evt.keyPressed == "z":
+#     elif event.keyPressed == "z":
 #         print("========ENTER SLOPE AVG MODE========")
 #         slope_avg_mode = True
-#     elif evt.keyPressed == "u":
+#     elif event.keyPressed == "u":
 #         # undo prism creation
 #         for actor in plt.actors:
 #             plt.remove(actor)
@@ -74,17 +74,17 @@
 #         connected_box_points_side2 = []
 #         first_box_con_point = None
 #
-#     # elif evt.keyPressed == 's':
+#     # elif event.keyPressed == 's':
 #     #     with open(outfl, 'w') as f:
 #     #         # uncomment the second line to save the line instead (with 100 pts)
 #     #         f.write(str(vector(cpoints)[:,(0,1)])+'\n')
 #     #         printc("\nCoordinates saved to file:", outfl, c='y', invert=1)
 #
-#     elif evt.keyPressed == "t":
+#     elif event.keyPressed == "t":
 #         print("CAMERA RESET")
 #         my_camera_reset()
 #
-#     printc('key press:', evt.keyPressed)
+#     printc('key press:', event.keyPressed)
 #
 #
 # def onLeftClick(event):
