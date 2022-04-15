@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Style id="default">
+      <LineStyle>
+        <color>7f0000ff</color>
+        <width>3</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>990000ff</color>
+        <fill>false</fill>
+      </PolyStyle>
+    </Style>
+    <Placemark>
+      <name>3_1.jpg</name>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-103.4017542107,31.4556804203 -103.4013178070,31.4556907411 -103.4013027965,31.4552243004 -103.4017391980,31.4552139796 -103.4017542107,31.4556804203</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>
