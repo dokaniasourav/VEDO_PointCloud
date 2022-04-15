@@ -1,7 +1,6 @@
 # from vedo import *
 # import numpy as np
 # from datetime import datetime
-# from pandas import DataFrame
 # import math
 # import sys
 # import time
@@ -11,37 +10,39 @@
 # RD_2 = 15
 # RD_3 = 10
 #
-# '''Get average slop of pt along a path:
+# '''Script for plotting and finding average slope of points along a path:
 #
-# 1. Select 'z' to enter slope avg mode
-# 2. Select an existing point to be the origin
-# 3. Your mouse will be tracked at this point, and you can click another point to determine the line which
-#    you would like to get pt from
+# 1. Firstly, click on the map to initialize it
+# 2. Enter 'z' or 'Z' to enter slope avg mode
+# 3. You can now see instructions in map as well.
+#    Select any two points and use the slider to provide the number of points required
 # 4. You will be asked how many pt you will want to contribute to the average
 #    slope, and you can specify an number less than the number of available pt, or select all
-# 5. Now the pt used to calculate the average will be shown in yellow, and in the terminal it will print the average
-#    slope along their connected line '''
+# 5. CSV file will be created with the slope values
+# '''
 #
 #
 # # Constantly checking if any meaningful key is selected
 # def on_key_press(event):
 #     global two_points, plt, slope_avg_mode, last_key_press, rectangle_mode
 #     last_key_press = event.keyPressed
-#     # printc(f'{event.keyPressed} pressed: ')
 #     if event.keyPressed in ['c', 'C']:
 #         # clear pt and lines
-#         plt.remove(plt.actors, render=True)
+#         for a in plt.actors:
+#             plt.remove([a], render=True)
 #         plt.sliders = []
 #         plt.actors = []
 #         two_points = []
-#         plt.render()
-#         printc("==== Cleared all pt ====", c="r")
+#         printc("==== Cleared all points on plot ====", c="r")
+#         for i in range(1, 6):
+#             update_text(f'text{i}', '')
+#         update_text('text4', 'Cleared everything on the plot')
 #     elif event.keyPressed == 'Escape':
 #         plt.clear()
 #         exit()
 #     elif event.keyPressed in ['z', 'Z']:
 #         # Enter slope average mode
-#         print("========ENTER SLOPE AVG MODE========")
+#         print("=== ENTER SLOPE AVG MODE ====")
 #         update_text('text5', 'Slope averaging is ON')
 #         slope_avg_mode = True
 #     elif event.keyPressed in ['u', 'U']:
@@ -81,7 +82,7 @@
 #         # Get actual pt
 #         plt.sliders = []
 #         plt.render()
-#         print(f'Number of pt on the line: {len(max_points)} bw {two_points}')
+#         print(f'Number of pt on the line: {len(max_points)}')
 #         update_text('text4', f'Please wait ...')
 #         get_avg_slope()
 #         slider_selected = False
@@ -96,11 +97,11 @@
 #             last_pt = cpt
 #             # Select the first point
 #             first_pt = np.array([cpt[0], cpt[1], cpt[2]])
-#             print("Tracking started ... ")
 #             if not tracking_mode:
 #                 # plt.addCallback('MouseMove', mouse_track)
+#                 print("Tracking is ON now ... ")
 #                 update_text('text2', 'SopeAVG and Tracking: ON', )
-#                 update_text('text4', 'Select 2nd point')
+#                 update_text('text4', 'Select 2nd point on map')
 #                 tracking_mode = True
 #         elif len(two_points) == 2:
 #             # Select second point and connect them with a line
@@ -124,7 +125,7 @@
 #                 showValue=False
 #             )
 #             update_text('text4', 'Select no of points on slider')
-#             update_text('text5', f'Max points = {len(max_points)}')
+#             update_text('text5', f'Max points = {len(max_points)}, click anywhere on map to finish selection')
 #             all_objects['slider'] = plt.actors[-1:]
 #             smooth_factor = 0
 #             slider_selected = True
@@ -211,6 +212,7 @@
 #         update_text('text3', f'Dist: {dist_xyz(last_pt, mouse_point):.3f}')
 #         return
 #
+#
 # # The get_line_of_points takes the two endpoints, then does its best to get the pt along the path of the line
 # # that are on the ground of the point cloud Does this by iterating through the pt that make up the line in
 # # space, then getting the closest point that is actually a part of the mesh to that point
@@ -270,7 +272,7 @@
 #         line_text = f'Dist: {dist_xyz(points[0], points[1]):.2f}'
 #         start = [points[0][0], points[0][1], points[0][2] + 1]
 #         ended = [points[1][0], points[1][1], points[1][2] + 1]
-#         new_line = Ruler(start, ended, lw=width, c=col, alpha=1.0, s=size, label=line_text)
+#         new_line = Ruler(start, ended, lw=width, c=col, alpha=1.0, s=size, text_box=line_text)
 #         plt.add([new_line])
 #         tracker_line.append(new_line)
 #         return new_line
@@ -305,11 +307,11 @@
 #     y_len = point_values[1][1] - point_values[0][1]
 #
 #     # magnitude is the distance in XY plane
-#     magnitude = math.sqrt((x_len**2) + (y_len**2))
+#     magnitude = math.sqrt((x_len ** 2) + (y_len ** 2))
 #     x_unit = x_len / magnitude
 #     y_unit = y_len / magnitude
 #
-#     print(f'X unit = {x_unit} and Y unit = {y_unit}')
+#     # print(f'X unit = {x_unit} and Y unit = {y_unit}')
 #     bad_point_count = 0
 #     made_better = 0
 #     z_offset = 0
@@ -356,7 +358,7 @@
 #     else:
 #         step_factor = round(len(max_points) / (smooth_factor + 1))
 #         pts_to_use = max_points[0::step_factor]
-#         print(f'Smooth factor = {smooth_factor}, steps = {step_factor}')
+#         # print(f'Smooth factor = {smooth_factor}, steps = {step_factor}')
 #         if len(pts_to_use) < 2:
 #             print('Error in point selection. Aborting')
 #             return
@@ -473,7 +475,7 @@
 #     # value = (value*value)/len(max_points)
 #     smooth_factor = round(value)
 #     update_text('text4', f'{round(smooth_factor)} points selected')
-#     update_text('text5', f'Max points = {len(max_points)}')
+#     # update_text('text5', f'Max points = {len(max_points)}')
 #
 #
 # ''' All the global variables declared '''
@@ -500,8 +502,13 @@
 #
 # print(f'Program started :')
 # start_time = time.time()
-# filename = sys.argv[1]
-# cloud = load(sys.argv[1]).pointSize(3.5)
+# if len(sys.argv) < 2:
+#     filename = 'Hump_1.ply'
+#     print(f'No file specified, Using the default file name: {filename}')
+# else:
+#     filename = sys.argv[1]
+#
+# cloud = load(filename).pointSize(3.5)
 # print(f'Loaded file {filename} in {time.time() - start_time} sec')
 #
 # start_time = time.time()
@@ -516,7 +523,7 @@
 # cloud.legend('My cloud map')
 # start_time = time.time()
 # mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some mesh object with low alpha
-# print(f'Mesh created in {time.time() - start_time} sec for {len(cloud.points())} pt')
+# print(f'Mesh created in {time.time() - start_time} sec for {len(cloud.points())} points')
 #
 # cloud_center_1 = (cloud_center[0], cloud_center[1], cloud_center[2] + 450)
 # # cloud_center_2 = [cloud_center[0], cloud_center[1], cloud_center[2]+50]
@@ -530,9 +537,14 @@
 # plt.addCallback('KeyPress', on_key_press)
 # plt.addCallback('LeftButtonPress', on_left_click)
 # plt.addCallback('MouseMove', mouse_track)
-# # print('Once the program launches, press \'h\' for list of default commands')
+# print('Once the program launches, Use the following keymap:'
+#       '\t\n \'z\'   for starting slope mode'
+#       '\t\n \'c\'   to clear everything'
+#       '\t\n \'u\'   to reset the plot'
+#       '\t\n \'Esc\' to close the plot'
+#       '\t\n \'h\'   for the default help menu'
+#       )
 # plt.show([mesh, cloud], interactorStyle=0, bg='white', axes=1, zoom=1.5, interactive=True)  # , camera=cam)
-# exit()
 #
-# # interactive()
-# # print('Finished execution')
+# print('Finished execution')
+# exit()

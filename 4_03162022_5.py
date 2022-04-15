@@ -6,9 +6,13 @@ import time
 import random
 import numpy as np
 import tkinter as tk
+
+import vedo
 from vedo import *
 from datetime import datetime
+import typing
 from tkinter import filedialog
+
 # import dill
 # import concurrent.futures
 # import threading
@@ -75,25 +79,35 @@ def on_key_press(event):
     #     handle_inp()
 
 
-def initialize_map(event):
+def enter_callback(event):
     global loc_plotter
-    if loc_plotter.initialized:
-        return
-    update_text('text1', '', [2, -2 * TEXT_SPACING, 5])
-    update_text('text2', 'SlopeAVG and Tracking: OFF', [2, -3 * TEXT_SPACING, 5])
-    update_text('text3', '', [2, -4 * TEXT_SPACING, 5])
-    update_text('text4', 'Press Z to enter slope mode',
-                [3, loc_plotter.max_xyz[1] - loc_plotter.min_xyz[1] + 3 * TEXT_SPACING, 5])
-    update_text('text5', 'Press R to enter slope mode',
-                [3, loc_plotter.max_xyz[1] - loc_plotter.min_xyz[1] + 2 * TEXT_SPACING, 5])
-    update_text('text6', '', [3, loc_plotter.max_xyz[1] - loc_plotter.min_xyz[1] + 1 * TEXT_SPACING, 5])
-    # all_tasks['timer_id'] = plt.timerCallback('create', dt=10)
-    loc_plotter.initialized = True
+    if not loc_plotter.initialized:
+        update_text('text1', '', [2, -2 * TEXT_SPACING, 5])
+        update_text('text2', 'SlopeAVG and Tracking: OFF', [2, -3 * TEXT_SPACING, 5])
+        update_text('text3', '', [2, -4 * TEXT_SPACING, 5])
+        update_text('text4', 'Press Z to enter slope mode',
+                    [3, loc_plotter.max_xyz[1] - loc_plotter.min_xyz[1] + 3 * TEXT_SPACING, 5])
+        update_text('text5', 'Press R to enter slope mode',
+                    [3, loc_plotter.max_xyz[1] - loc_plotter.min_xyz[1] + 2 * TEXT_SPACING, 5])
+        update_text('text6', '', [3, loc_plotter.max_xyz[1] - loc_plotter.min_xyz[1] + 1 * TEXT_SPACING, 5])
+        # all_tasks['timer_id'] = plt.timerCallback('create', dt=10)
+        loc_plotter.initialized = True
+    if loc_plotter.timerID is not None:
+        plt.timerCallback('destroy', timerId=loc_plotter.timerID)
+        loc_plotter.timerID = None
+
+
+def leave_callback(event):
+    global loc_plotter, all_tasks
+    # if 'timer_id' in all_tasks.keys():
+    #     return
+    # if loc_plotter.timerID is None:
+    #     loc_plotter.timerID = plt.timerCallback('create', dt=500)
 
 
 def on_left_click(event):
     global two_points, loc_plotter, cloud
-    global max_points
+    global max_points, tracker_lines, plotted_points
 
     if event.picked3d is None:
         return
@@ -110,14 +124,8 @@ def on_left_click(event):
 
     if loc_plotter.slope_avg_mode or loc_plotter.rectangle_mode:
         cpt2 = vector(list(event.picked3d))
-        cpt = None
-        for rt in range(0, 10):
-            cpt1 = [(xyz + random.random() - 0.5) for xyz in cpt2]
-            cpt = cloud.closestPoint(cpt1)
-            if dist_xy(cpt, cpt2) < 1.5:
-                break
+        cpt = find_closest_point(cpt2)
         if cpt is None:
-            print('Failed to find a close point for ', cpt2)
             return
         two_points.append(cpt)
         if loc_plotter.slope_avg_mode:
@@ -171,9 +179,35 @@ def on_left_click(event):
             rect_points = get_rectangle(two_points)
             for line in tracker_lines:
                 plt.remove(line)
+            tracker_lines = []
+            plt.remove(plotted_points.pop())
+            plt.remove(plotted_points.pop())
+            plt.remove(plotted_points.pop())
             for i in range(0, 4):
                 add_point(rect_points[i], size=RD_4, col='Green')
-                add_line([rect_points[i], rect_points[i - 1]], width=3, col='Yellow')
+                add_line([rect_points[i], rect_points[i - 1]], width=3, col='Yellow', silent=True)
+            two_points = []
+            center_point = find_closest_point((rect_points[0] + rect_points[1])/2)
+            add_point(center_point, size=RD_3, col='Blue')
+            const_dist = 20 * 0.3048
+            yy_diff = rect_points[2][1] - rect_points[1][1]
+            xx_diff = rect_points[2][0] - rect_points[1][0]
+            orig_angle = np.math.atan(yy_diff/xx_diff)
+            print('Angle before = ', orig_angle * 180 / np.pi)
+            if yy_diff > 0:
+                orig_angle += np.pi/2
+            else:
+                orig_angle -= np.pi / 2
+            print('Angle now = ', orig_angle * 180 / np.pi)
+            for i in range(0, 180, 5):
+                new_angle = orig_angle + (i*np.pi)/180
+                x_value = const_dist*np.math.cos(new_angle)
+                y_value = const_dist*np.math.sin(new_angle)
+                circ_point = find_closest_point([center_point[0]+x_value, center_point[1]+y_value, center_point[2]])
+                if circ_point is None:
+                    print('Error finding point ..')
+                    break
+                add_point(circ_point, size=RD_3, col='White')
 
 
 def dist_xyz(point1, point2):
@@ -225,9 +259,8 @@ def mouse_track(event):
 
     # For the Rectangle Mode operation #
     if len(two_points) == 1:
-        for line in tracker_lines:
-            plt.remove(line)
-        tracker_lines = []
+        if len(tracker_lines) > 0:
+            plt.remove(tracker_lines.pop())
         add_ruler([two_points[0], mouse_point], width=3, col='yellow', size=TEXT_SIZE)
         update_text('text3', f'Dist: {dist_xyz(two_points[0], mouse_point):.3f}')
         return
@@ -237,7 +270,6 @@ def mouse_track(event):
             plt.remove(line)
         tracker_lines = []
         rect_points = get_rectangle([two_points[0], two_points[1], mouse_point])
-
         for i in range(0, 4):
             add_ruler([rect_points[i], rect_points[i - 1]], width=3, col='white', size=TEXT_SIZE)
         return
@@ -260,6 +292,10 @@ def get_rectangle(points):
 
     new_point_1 = point_3 - (point_12 * (dist_xyz(point_1, point_3) * cosine_1)) / dist_xyz(point_1, point_2)
     new_point_2 = point_3 - (point_12 * (dist_xyz(point_2, point_3) * cosine_2)) / dist_xyz(point_1, point_2)
+
+    max_z = max(points[1][2], points[0][2])
+    points[1][2] = points[0][2] = new_point_1[2] = new_point_2[2] = max_z
+
     update_text('text4', f'Angles = {cosine_1:.3f} and {cosine_2:.3f}')
     return [points[1], points[0], new_point_1, new_point_2]
 
@@ -269,7 +305,8 @@ def get_rectangle(points):
 # space, then getting the closest point that is actually a part of the mesh to that point
 
 
-def add_point(pos, size=RD_1, col='red', silent=False, is_text=False):
+def add_point(pos, size=RD_1, col='red', silent=True, is_text=False):
+    global plotted_points
     new_point = Point(pos, r=size, c=col)  # Point to be added, default radius and default color
     plt.add(new_point)
     plotted_points.append(new_point)
@@ -295,19 +332,21 @@ def add_text(text, pos, silent=False, size=2):
     return tx1
 
 
-def add_line(points, col='red', width=5, silent=False):
+def add_line(points, col='red', width=5, silent=True, spread=1):
+    global plotted_lines
     new_line = None
     if len(points) >= 2:
-        new_line = Line([points[0][0], points[0][1], points[0][2] + 0.01],
-                        [points[1][0], points[1][1], points[1][2] + 0.01],
-                        lw=width, c=col, alpha=1.0)
-        plt.add([new_line])
-        plotted_lines.append(new_line)
-        # plt.render()
-        if not silent:
-            print(f'Added {col} line bw {points[0] - loc_plotter.min_xyz} and {points[1] - loc_plotter.min_xyz}')
+        for i in range(1, spread+1):
+            new_line = vedo.Line([points[0][0], points[0][1], points[0][2]+i*0.004],
+                                 [points[1][0], points[1][1], points[1][2]+i*0.004],
+                                 lw=width, c=col, alpha=1.0)
+            plt.add([new_line])
+            plotted_lines.append(new_line)
+            # plt.render()
+            if not silent:
+                print(f'Added {col} line bw {points[0] - loc_plotter.min_xyz} and {points[1] - loc_plotter.min_xyz}')
     else:
-        print('Invalid number of pt')
+        print('Invalid number of points')
     return new_line
 
 
@@ -563,48 +602,55 @@ def slider_y(widget, event):
 
 
 def handle_timer(event):
-    global all_tasks
-    key = 'add_point'
-    if key in all_tasks.keys():
-        ind = all_tasks[key]['index']
-        total_points = len(all_tasks[key]['points'])
-        if ind < total_points:
-            add_point(all_tasks[key]['points'][ind], size=RD_3, col='g', silent=True)
-            all_tasks[key]['index'] += 1
-            update_text('text6', f'Added {ind + 1} out of {total_points} points')
-        else:
+    global all_tasks, loc_plotter
+    done = []
+    if 'timer_id' in all_tasks.keys():
+        for key in all_tasks.keys():
+            if key != 'timer_id':
+                ind = all_tasks[key]['index']
+                total_points = len(all_tasks[key]['points'])
+                if ind < total_points:
+                    if key == 'add_point':
+                        add_point(all_tasks[key]['points'][ind], size=RD_3, col='g', silent=True)
+                        all_tasks[key]['index'] += 1
+                        update_text('text6', f'Added {ind + 1} out of {total_points} points')
+                    elif key == 'add_line':
+                        add_line([all_tasks[key]['points'][ind - 1], all_tasks[key]['points'][ind]],
+                                 col='yellow', width=4, silent=True)
+                        all_tasks[key]['index'] += 1
+                else:
+                    done.append(key)
+                    update_text('text6', f'Done adding {total_points} points')
+        for key in done:
             del all_tasks[key]
-            update_text('text6', f'Done adding {total_points} points')
+        if len(all_tasks.keys()) == 1:
+            plt.timerCallback('destroy', timerId=all_tasks['timer_id'])
+            del all_tasks['timer_id']
 
-    key = 'add_line'
-    if key in all_tasks.keys():
-        ind = all_tasks[key]['index']
-        if ind < len(all_tasks[key]['points']):
-            add_line([all_tasks[key]['points'][ind - 1], all_tasks[key]['points'][ind]],
-                     col='yellow', width=4, silent=True)
-            all_tasks[key]['index'] += 1
-        else:
-            del all_tasks[key]
-
-    if 'add_line' not in all_tasks.keys() and 'add_line' not in all_tasks.keys():
-        plt.timerCallback('destroy', timerId=all_tasks['timer_id'])
+    if loc_plotter.timerID is not None:
+        try:
+            q_data = loc_plotter.out_q.get(block=False)
+            print('Got Queue data ', q_data)
+        except Exception as e:
+            print('Got nothing')
+            q_data = e
 
 
 def get_file_names():
     tk.Tk().withdraw()
     if len(sys.argv) < 2:
         print('No PLY file specified: opening prompt')
-        file_1 = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the PLY File",
-                                            filetypes=[('Point-cloud file', ('.ply', '.pcd'))])
-        # file_1 = 't3.ply'
+        # file_1 = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the PLY File",
+        #                                     filetypes=[('Point-cloud file', ('.ply', '.pcd'))])
+        file_1 = 't3.ply'
     else:
         file_1 = sys.argv[1]
 
     if len(sys.argv) < 3:
         print('No Image file specified: opening prompt')
-        file_2 = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the Image File",
-                                            filetypes=[('Image Files', ('.png', '.jpg'))])
-        # pic_name = '3_1.png'
+        # file_2 = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select the Image File",
+        #                                     filetypes=[('Image Files', ('.png', '.jpg'))])
+        file_2 = '3_1.png'
     else:
         file_2 = sys.argv[2]
 
@@ -619,28 +665,35 @@ def get_file_names():
     return [file_1, file_2]
 
 
-def toggle_state(text):
-    print(text)
+def toggle_state(queue_obj: multiprocessing.Queue, value):
+    d = {
+        'time': time.time(),
+        'value': value
+    }
+    queue_obj.put(d)
+    print(queue_obj.qsize())
 
 
-def gui_main(inp_q, out_q):
+def gui_main(inp_q: multiprocessing.Queue, out_q: multiprocessing.Queue):
     root = tk.Tk()
     root.geometry('400x300')
     root.title('Main menu')
 
-    l1 = tk.Label(root, text="Enter a value ", borderwidth=2, font=10)
-    l1.pack()
+    label = tk.Label(root, text="Enter a value ", borderwidth=2, font=10)
 
     text = tk.StringVar()
-    e = tk.Entry(root, textvariable=text)
-    e.bind('<Key>', key_press)
-    e.pack()
+    entry = tk.Entry(root, textvariable=text)
+    # e.bind('<Key>', key_press)
 
-    button_1 = tk.Button(root, text="Enter Slope AVG Mode", command=lambda: toggle_state('Slope AVG Mode'))
+    button_1 = tk.Button(root, text="Enter Slope AVG Mode", command=lambda: toggle_state(out_q, entry.get()))
 
+    label.pack()
+    entry.pack()
+    button_1.pack()
     root.mainloop()
 
 
+settings.enableDefaultKeyboardCallbacks = False
 plt = Plotter(pos=[0, 0], size=[600, 1080])
 temp = open('temp', mode='w+')
 temp.close()
@@ -651,7 +704,6 @@ def plt_main(inp_q, out_q):
     global cloud, plt
 
     print(f'Program started :')
-    settings.enableDefaultKeyboardCallbacks = False
 
     [filename, pic_name] = get_file_names()
     print(f'Selected PLY file: {filename} and picture: {pic_name}')
@@ -672,6 +724,8 @@ def plt_main(inp_q, out_q):
     loc_plotter.min_xyz = np.min(cloud.points(), axis=0)
     loc_plotter.max_xyz = np.max(cloud.points(), axis=0)
     print(loc_plotter.max_xyz - loc_plotter.min_xyz)
+    loc_plotter.inp_q = inp_q
+    loc_plotter.out_q = out_q
 
     # st = time.time()
     # new_mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some new_mesh object with low alpha
@@ -686,7 +740,8 @@ def plt_main(inp_q, out_q):
     plt.addCallback('LeftButtonPress', on_left_click)
     plt.addCallback('MouseMove', mouse_track)
     plt.addCallback('timer', handle_timer)
-    plt.addCallback('Enter', initialize_map)
+    plt.addCallback('Enter', enter_callback)
+    plt.addCallback('Leave', leave_callback)
     print('Once the program launches, Use the following keymap:'
           '\t\n \'z\'   for starting slope mode'
           '\t\n \'c\'   to clear everything'
@@ -711,6 +766,20 @@ def key_press(event):
     print(event)
 
 
+def find_closest_point(point, num_retry=10, dist_threshold=1.5):
+    fact = 1.0
+    for rt in range(0, num_retry):
+        rand_point = [(xyz + (random.random() - 0.5)*fact) for xyz in point]
+        close_point = cloud.closestPoint(rand_point)
+        fact += 0.1
+        if dist_xy(close_point, rand_point) < dist_threshold:
+            print('Found in ', rt, ' tries')
+            return close_point
+
+    print('Failed to find a close point for ', point)
+    return None
+
+
 class LocalPlotter:
     slope_avg_mode = False
     tracking_mode = False
@@ -723,6 +792,9 @@ class LocalPlotter:
     last_key_press = None
     smooth_factor = 0
     temp_dict: {}
+    inp_q: multiprocessing.Queue
+    out_q: multiprocessing.Queue
+    timerID = None
 
 
 ''' All the global variables declared '''
@@ -737,6 +809,7 @@ all_objects = {
 all_tasks = {
 }
 ''' End of variable declarations '''
+
 
 ################################################################################################
 ############################## MAIN LIKE SECTION ###############################################
@@ -759,10 +832,10 @@ def main():
     gui_process = multiprocessing.Process(target=gui_main, args=(inp_q, out_q))
     plt_process = multiprocessing.Process(target=plt_main, args=(inp_q, out_q))
 
-    gui_process.start()
+    # gui_process.start()
     plt_process.start()
 
-    gui_process.join()
+    # gui_process.join()
     plt_process.join()
 
 

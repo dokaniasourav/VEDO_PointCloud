@@ -1,5 +1,13 @@
 /test*.py
 /Try*.py
 /*.ply
+/*.las
+/*.png
+/*.jpg
+/*.tif
+/*.txt
 /*.csv
 /.gitignore
+/output*/*
+/Test/*
+/Old Scripts/*
