@@ -324,10 +324,17 @@
 #                     point_star_logging = []
 #                     add_line([g_plot.current_points[3], g_plot.current_points[4]],
 #                              width=4, col='lightgreen', elevation=2)
-#                     for p in range(0, (num_points+2)):
-#                         new_center_point = (g_plot.current_points[3] * (p + 1) +
-#                                             g_plot.current_points[4] * (num_points - p)) / (num_points + 1)
-#                         act_center_point = find_closest_point(new_center_point)
+#
+#                     act_center_points = [np.array(g_plot.current_points[3])]
+#                     num_points += 1
+#                     for p in range(1, num_points):
+#                         new_center_point = (g_plot.current_points[4] * p +
+#                                             g_plot.current_points[3] * (num_points - p)) / num_points
+#                         act_center_pt = find_closest_point(new_center_point)
+#                         act_center_points.append(act_center_pt)
+#                     act_center_points.append(np.array(g_plot.current_points[4]))
+#
+#                     for p, act_center_point in enumerate(act_center_points):
 #                         add_point(act_center_point, size=RD_4, col='Blue')
 #                         point_star_structure = [{'angle': perpendicular_angle + i} for i in range(-90, 94, 4)]
 #                         critical_angle1 = get_angle(act_center_point, g_plot.rect_points[2])
@@ -392,8 +399,10 @@
 #                                 'SN': i + 1,
 #                                 'Point Num': p + 1,
 #                                 'Title': 'Point star value',
-#                                 'Center Point': act_center_point + g_plot.geo_xyz,
-#                                 'Circle Point': star_point['point'] + g_plot.geo_xyz,
+#                                 'Center Point Rel': act_center_point,
+#                                 'Circle Point Rel': star_point['point'],
+#                                 'Center Point Abs': act_center_point + g_plot.geo_xyz,
+#                                 'Circle Point Abs': star_point['point'] + g_plot.geo_xyz,
 #                                 'Slope': star_point['slope'],
 #                                 'Angle': star_point['angle'],
 #                                 'Timestamp': star_point['time'],
@@ -413,8 +422,10 @@
 #                             'SN': len(point_star_structure) + 1,
 #                             'Point Num': p + 1,
 #                             'Title': 'Point star maximum',
-#                             'Center Point': act_center_point + g_plot.geo_xyz,
-#                             'Circle Point': point_star_structure[max_slope_index]['point'] + g_plot.geo_xyz,
+#                             'Center Point Rel': act_center_point,
+#                             'Circle Point Rel': point_star_structure[max_slope_index]['point'],
+#                             'Center Point Abs': act_center_point + g_plot.geo_xyz,
+#                             'Circle Point Abs': point_star_structure[max_slope_index]['point'] + g_plot.geo_xyz,
 #                             'Slope': point_star_structure[max_slope_index]['slope'],
 #                             'Angle': point_star_structure[max_slope_index]['angle'],
 #                             'Timestamp': point_star_structure[max_slope_index]['time'],
@@ -867,7 +878,7 @@
 #         print('Could not find line intersection')
 #         return [0.0, 0.0]
 #
-#     return [x / z, y / z, (a1[2] + a2[2]) / 2]
+#     return np.array([x / z, y / z, (a1[2] + a2[2]) / 2])
 #
 #
 # def rem_all_trackers():
