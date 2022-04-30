@@ -6,7 +6,7 @@ import math
 import sys
 import time
 from scipy.optimize import minimize
-from scipy.optimize import basinhopping
+# from scipy.optimize import basinhopping
 
 """
 See if points touch a vehicle as it is moving along a path:
@@ -631,7 +631,7 @@ box_selection_mode = False
 structures = []
 perpendicular = ""
 
-cloud = load(sys.argv[1]).pointSize(3.5)
+cloud = load("t3.ply").pointSize(3.5)
 
 cloud_center = cloud.centerOfMass()
 print("CLOUD CENTER")
