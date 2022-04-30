@@ -83,7 +83,7 @@ def on_key_press(event):
         elif event.keyPressed in ['V', 'v']:
             print("=== ENTER VEHICLE MODE ====")
             update_text('text5', 'Rectangle mode is ON')
-            g_plot.vehicle_mode = VEHICLE_RUNNER
+            g_plot.plotter_mode = VEHICLE_RUNNER
 
     # elif event.keyPressed in [str(e) for e in range(0, 9)]:
     #     handle_inp()
@@ -222,17 +222,19 @@ def on_left_click(event):
         if len(g_plot.current_points) == 1:
             if not g_plot.tracking_mode:
                 print("Tracking is ON now ... ")
-                if g_plot.slope_avg_mode:
+                if g_plot.plotter_mode == SLOPE_AVG_MODE:
                     update_text('text2', 'SlopeAVG and Tracking: ON', )
-                else:
+                elif g_plot.plotter_mode == RECTANGLE_MODE:
                     update_text('text2', 'RectMode and Tracking: ON', )
+                else:
+                    update_text('text2', 'Vehicle mode and Tracking: ON', )
                 update_text('text4', 'Select 2nd point on map')
                 g_plot.tracking_mode = True
 
         elif len(g_plot.current_points) == 2:
             if g_plot.plotter_mode == SLOPE_AVG_MODE:
                 g_plot.tracking_mode = False
-                g_plot.slope_avg_mode = False
+                g_plot.plotter_mode = IDEAL_PLT_MODE
                 update_text('text2', 'SlopeAVG: ON, Tracking: OFF')
                 update_text('text3', '')
                 rem_all_trackers()
@@ -250,7 +252,7 @@ def on_left_click(event):
                 update_text('text4', f'{round(num_points)} points selected')
                 get_avg_slope(num_points)
                 g_plot.current_points = []
-            else:
+            elif g_plot.plotter_mode == RECTANGLE_MODE:
                 update_text('text4', 'Make the desired rectangle')
         elif len(g_plot.current_points) == 3:
             rect_points = get_rectangle(g_plot.current_points)
@@ -303,7 +305,7 @@ def on_left_click(event):
                     # print('Angles perpendicular = ', perpendicular_angle,
                     #       ', horizontal = ', horizontal_angle)
                     g_plot.tracking_mode = False
-                    g_plot.rectangle_mode = False
+                    g_plot.plotter_mode = IDEAL_PLT_MODE
 
                     num_points = int(tkinter.simpledialog.askinteger("Input a number",
                                                                      "Number of points on line",
@@ -819,16 +821,9 @@ def reset_plot():
     g_plot.current_points = []
     g_plot.tracking_mode = False
 
-
 # def get_list(num_elements, arr):
 #     arr_len = len(arr)
 #     return [arr[(i * arr_len // num_elements) + (arr_len // (2 * num_elements))] for i in range(num_elements)]
-
-
-def button_action(button):
-    global g_plot
-    g_plot.slope_avg_mode = (not g_plot.slope_avg_mode)
-    button.switch()  # change to next status
 
 
 def my_camera_reset():
