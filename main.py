@@ -24,6 +24,11 @@ RD_2 = 15
 RD_3 = 10
 RD_4 = 8
 
+SLOPE_AVG_MODE = 111
+RECTANGLE_MODE = 222
+VEHICLE_RUNNER = 333
+IDEAL_PLT_MODE = 999
+
 TEXT_SIZE = 3
 TEXT_SPACING = 6
 SCALE_FACTOR = 0.6
@@ -45,7 +50,6 @@ def on_key_press(event):
     global plt, g_plot
     g_plot.last_key_press = event.keyPressed
     if event.keyPressed in ['c', 'C']:
-        # clear pt and lines
         for point in g_plot.plotted_points:
             plt.remove(point, render=True)
         for t_line in g_plot.plotted_trackers:
@@ -63,20 +67,24 @@ def on_key_press(event):
     elif event.keyPressed == 'Escape':
         plt.clear()
         exit()
-    elif event.keyPressed in ['z', 'Z']:
-        if not g_plot.rectangle_mode:
-            print("=== ENTER SLOPE AVG MODE ====")
-            update_text('text5', 'Slope averaging is ON')
-            g_plot.slope_avg_mode = True
-    elif event.keyPressed in ['R', 'r']:
-        if not g_plot.slope_avg_mode:
-            print("=== ENTER RECTANGLE MODE ====")
-            update_text('text5', 'Rectangle mode is ON')
-            g_plot.rectangle_mode = True
     elif event.keyPressed in ['u', 'U']:
         reset_plot()
     elif event.keyPressed == 't':
         my_camera_reset()
+    elif g_plot.plotter_mode == IDEAL_PLT_MODE:
+        if event.keyPressed in ['z', 'Z']:
+            print("=== ENTER SLOPE AVG MODE ====")
+            update_text('text5', 'Slope averaging is ON')
+            g_plot.plotter_mode = SLOPE_AVG_MODE
+        elif event.keyPressed in ['R', 'r']:
+            print("=== ENTER RECTANGLE MODE ====")
+            update_text('text5', 'Rectangle mode is ON')
+            g_plot.plotter_mode = RECTANGLE_MODE
+        elif event.keyPressed in ['V', 'v']:
+            print("=== ENTER VEHICLE MODE ====")
+            update_text('text5', 'Rectangle mode is ON')
+            g_plot.vehicle_mode = VEHICLE_RUNNER
+
     # elif event.keyPressed in [str(e) for e in range(0, 9)]:
     #     handle_inp()
 
@@ -200,13 +208,13 @@ def on_left_click(event):
     #     g_plot.slider_selected = False
     #     g_plot.current_points = []
 
-    if g_plot.slope_avg_mode or g_plot.rectangle_mode:
+    if g_plot.plotter_mode != IDEAL_PLT_MODE:
         cpt2 = vedo.vector(list(event.picked3d))
         cpt = find_closest_point(cpt2)
         if cpt is None:
             return
         g_plot.current_points.append(cpt)
-        if g_plot.slope_avg_mode:
+        if g_plot.plotter_mode == SLOPE_AVG_MODE:
             add_point(cpt, size=RD_2, col='red')
         else:
             add_point(cpt, size=RD_3, col='yellow')
@@ -222,7 +230,7 @@ def on_left_click(event):
                 g_plot.tracking_mode = True
 
         elif len(g_plot.current_points) == 2:
-            if g_plot.slope_avg_mode:
+            if g_plot.plotter_mode == SLOPE_AVG_MODE:
                 g_plot.tracking_mode = False
                 g_plot.slope_avg_mode = False
                 update_text('text2', 'SlopeAVG: ON, Tracking: OFF')
@@ -232,19 +240,6 @@ def on_left_click(event):
                 add_line(g_plot.current_points, width=2, col='white')
                 max_points = int(round(dist_xyz(g_plot.current_points[0],
                                                 g_plot.current_points[1]) / SCALE_FACTOR))
-                # plt.addSlider3D(
-                #     slider_y,
-                #     pos1=[g_plot.min_xyz[0] + 5,
-                #           g_plot.max_xyz[1] + TEXT_SPACING,
-                #           g_plot.min_xyz[2] + 5],
-                #     pos2=[g_plot.max_xyz[0] - 5,
-                #           g_plot.max_xyz[1] + TEXT_SPACING,
-                #           g_plot.min_xyz[2] + 5],
-                #     xmin=0, xmax=max_points,
-                #     s=0.01, c="blue", t=1.5,
-                #     title="Select a value for number of pt",
-                #     showValue=False
-                # )
                 update_text('text5', f'Max points = {max_points}')
                 num_points = int(tkinter.simpledialog.askinteger("Input Dialog",
                                                                  f"\n\tNumber of points on map,"
@@ -757,8 +752,8 @@ def get_avg_slope(num_points):
     slopes_bw_points.append({
         'SN': len(points_to_use),
         'Title': 'Slope BW First and Last',
-        'Point1_Rel': points_to_use[1-1],
-        'Point2_Rel': points_to_use[0-1],
+        'Point1_Rel': points_to_use[1 - 1],
+        'Point2_Rel': points_to_use[0 - 1],
         'Point1_Abs': points_to_use[1 - 1] + g_plot.geo_xyz,
         'Point2_Abs': points_to_use[0 - 1] + g_plot.geo_xyz,
         # 'X1': points_to_use[0][0],
@@ -905,17 +900,17 @@ def move_camera(point):
 
 
 def get_file_names(required_files):
-
     file_names = {}
     if required_files is None or len(required_files) == 0:
         return file_names
 
+    use_defaults = True
     tkinter.Tk().withdraw()
     file_types = {
-        'PLY': {'ext':  ('.ply'), 'title': 'PLY File', 'desc': 'Point-cloud file', 'default': 't3.ply'},
-        'TIF': {'ext':  ('.tif', '.tiff'), 'title': 'TIF File', 'desc': 'Tagged Image File', 'default': '3_1.tif'},
-        'PNG': {'ext':  ('.png', '.jpg', '.jpeg'), 'title': 'Image File', 'desc': 'Image Files', 'default': '3_1.png'},
-        'LAS': {'ext':  ('.las'), 'title': 'LAS File', 'desc': 'LAS point file', 'default': '3_1.las'},
+        'PLY': {'ext': ('.ply'), 'title': 'PLY File', 'desc': 'Point-cloud file', 'default': 't3.ply'},
+        'TIF': {'ext': ('.tif', '.tiff'), 'title': 'TIF File', 'desc': 'Tagged Image File', 'default': '3_1.tif'},
+        'PNG': {'ext': ('.png', '.jpg', '.jpeg'), 'title': 'Image File', 'desc': 'Image Files', 'default': '3_1.png'},
+        'LAS': {'ext': ('.las'), 'title': 'LAS File', 'desc': 'LAS point file', 'default': '3_1.las'},
         'TFW': {'ext': ('.tfw'), 'title': 'TFW GIS File', 'desc': 'World coordinate file', 'default': '3_1.tfw'}
     }
     print('Required files are: ', required_files)
@@ -924,15 +919,18 @@ def get_file_names(required_files):
         titles = ['[' + file_types[file_type]['title'] + ']' for file_type in required_files]
         print('Default Usage:: \t', os.path.basename(__file__), ', '.join(titles))
         for i, file_type in enumerate(required_files):
-            print(f'No {file_type} file specified: opening prompt')
-            file_name = tkinter.filedialog.askopenfilename(initialdir=os.getcwd(),
-                                                           title=f'Select the {file_type} File',
-                                                           filetypes=[(file_types[file_type]['desc'],
-                                                                       file_types[file_type]['ext'])])
+            if use_defaults:
+                file_name = file_types[file_type]['default']
+            else:
+                print(f'No {file_type} file specified: opening prompt')
+                file_name = tkinter.filedialog.askopenfilename(initialdir=os.getcwd(),
+                                                               title=f'Select the {file_type} File',
+                                                               filetypes=[(file_types[file_type]['desc'],
+                                                                           file_types[file_type]['ext'])])
             file_names[file_type] = file_name
     else:
         for i, file_type in enumerate(required_files):
-            file_names[file_type] = sys.argv[i+1]
+            file_names[file_type] = sys.argv[i + 1]
 
     for file_t in file_names:
         if not os.path.isfile(file_names[file_t]):
@@ -1017,10 +1015,10 @@ def plt_main(inp_q, out_q):
 
     st = time.time()
     cloud = vedo.load(ply_file).pointSize(4.0).scale(
-        (1/g_plot.scale_f, 1/g_plot.scale_f, 1/g_plot.scale_f))
+        (1 / g_plot.scale_f, 1 / g_plot.scale_f, 1 / g_plot.scale_f))
     g_plot.min_xyz = np.min(cloud.points(), axis=0)
     g_plot.max_xyz = np.max(cloud.points(), axis=0)
-    cloud = cloud.pos(x=0-g_plot.min_xyz[0], y=0-g_plot.min_xyz[1], z=0-g_plot.min_xyz[2])
+    cloud = cloud.pos(x=0 - g_plot.min_xyz[0], y=0 - g_plot.min_xyz[1], z=0 - g_plot.min_xyz[2])
     print(f'Loaded cloud {ply_file} in {time.time() - st} sec')
     ################################################################################################
     g_plot.geo_xyz[2] = g_plot.min_xyz[2]
@@ -1103,10 +1101,12 @@ def get_angle(point1, point2):
 
 
 class LocalPlotter:
-    slope_avg_mode = False
+    plotter_mode = IDEAL_PLT_MODE
+    # slope_avg_mode = False
+    # rectangle_mode = False
+    # vehicle_mode = False
     tracking_mode = False
-    rectangle_mode = False
-    slider_selected = False
+    # slider_selected = False
     initialized = False
     min_xyz: []
     max_xyz: []
