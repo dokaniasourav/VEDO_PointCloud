@@ -125,7 +125,7 @@
 #             )
 #             update_text('text4', 'Select no of points on slider')
 #             update_text('text5', f'Max points = {len(max_points)}')
-#             all_objects['slider'] = plt.actors[-1:]
+#             text_objects['slider'] = plt.actors[-1:]
 #             smooth_factor = 0
 #             slider_selected = True
 #
@@ -279,14 +279,14 @@
 #
 #
 # def update_text(text_id, value, rel_pos=None, size=3):
-#     global all_objects
+#     global text_objects
 #     if rel_pos is None:
 #         rel_pos = [5, 5, 5]
-#     if text_id in all_objects.keys():
-#         plt.remove(all_objects[text_id]['text'])
-#         rel_pos = all_objects[text_id]['pos']
+#     if text_id in text_objects.keys():
+#         plt.remove(text_objects[text_id]['text'])
+#         rel_pos = text_objects[text_id]['pos']
 #     new_text = add_text(value, pos=min_xyz + rel_pos, silent=True, size=size)
-#     all_objects[text_id] = {
+#     text_objects[text_id] = {
 #         'text': new_text,
 #         'pos': rel_pos
 #     }
@@ -492,7 +492,7 @@
 # last_pt = [0, 0, 0]
 # max_points = []
 # initialized = False
-# all_objects = {
+# text_objects = {
 # }
 # ''' End of variable declarations '''
 #

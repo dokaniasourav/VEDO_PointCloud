@@ -64,6 +64,7 @@ def on_key_press(event):
         update_text('text4', 'Cleared everything on the plot')
         update_text('text5', 'Press R to enter rectangle mode')
         update_text('text6', 'Press Z to enter slope mode')
+        g_plot.plotter_mode = IDEAL_PLT_MODE
     elif event.keyPressed == 'Escape':
         plt.clear()
         exit()
@@ -82,8 +83,9 @@ def on_key_press(event):
             g_plot.plotter_mode = RECTANGLE_MODE
         elif event.keyPressed in ['V', 'v']:
             print("=== ENTER VEHICLE MODE ====")
-            update_text('text5', 'Rectangle mode is ON')
+            update_text('text5', 'Vehicle mode is ON')
             g_plot.plotter_mode = VEHICLE_RUNNER
+            get_vehicle_data()
 
     # elif event.keyPressed in [str(e) for e in range(0, 9)]:
     #     handle_inp()
@@ -213,11 +215,12 @@ def on_left_click(event):
         cpt = find_closest_point(cpt2)
         if cpt is None:
             return
-        g_plot.current_points.append(cpt)
         if g_plot.plotter_mode == SLOPE_AVG_MODE:
             add_point(cpt, size=RD_2, col='red')
-        else:
+            g_plot.current_points.append(cpt)
+        elif g_plot.plotter_mode == RECTANGLE_MODE:
             add_point(cpt, size=RD_3, col='yellow')
+            g_plot.current_points.append(cpt)
 
         if len(g_plot.current_points) == 1:
             if not g_plot.tracking_mode:
@@ -529,6 +532,54 @@ def get_rectangle(points):
     return [points[1], points[0], new_point_1, new_point_2]
 
 
+def get_vehicle_data():
+    global g_plot
+    root = g_plot.tk_root
+    root.title('Vehicle Attribute Selection')
+    root.columnconfigure(0, weight=1)
+    root.columnconfigure(1, weight=4)
+
+    fields = {
+        0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 5.0, 'min_v': 0.0,
+            's_name': '__', 'name': 'Enter the required vehicle parameters'},
+        1: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
+            's_name': 'BO', 'name': 'Back Overhang'},
+        2: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
+            's_name': 'FO', 'name': 'Front Overhang'},
+        3: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
+            's_name': 'WR', 'name': 'Wheel Radius'},
+        4: {'data': tkinter.StringVar(), 'default': '4',   'max_v': 5.0, 'min_v': 0.0,
+            's_name': 'NW', 'name': 'Number of wheels'},
+        5: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
+            's_name': 'BL', 'name': 'Base Length'},
+        6: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
+            's_name': 'VW', 'name': 'Vehicle Width'}
+    }
+
+    for i in range(0, 7):
+        tkinter.Label(root, text=fields[i]['name'], borderwidth=2, font=10
+                 ).grid(column=0, row=i, sticky=tkinter.W, padx=5, pady=5)
+        if i != 0:
+            ent = tkinter.Entry(root, textvariable=fields[i]['data'])
+            ent.insert(tkinter.END, fields[i]['default'])
+            ent.grid(column=1, row=i, sticky=tkinter.E, padx=5, pady=5)
+    tkinter.Button(root, text='Confirm', command=lambda: get_values(root, fields)
+                   ).grid(column=1, row=len(fields), sticky=tkinter.E, padx=5, pady=5)
+    root.mainloop()
+
+
+def get_values(root, field_entries):
+    global g_plot
+    try:
+        for field_entry in field_entries:
+            fe = field_entries[field_entry]
+            dt = fe['data'].get()
+            if fe['min_v'] < float(dt) < fe['max_v']:
+                g_plot.vehicle_data[fe['s_name']] = dt
+                print(fe['name'], ' = ', dt)
+        root.destroy()
+    except Exception as e:
+        print(e)
 # The get_line_of_points takes the two endpoints, then does its best to get the pt along the path of the line
 # that are on the ground of the point cloud Does this by iterating through the pt that make up the line in
 # space, then getting the closest point that is actually a part of the mesh to that point
@@ -611,14 +662,14 @@ def add_ruler(points, col='white', width=4, size=2):
 
 
 def update_text(text_id, value, rel_pos=None, size=TEXT_SIZE):
-    global all_objects
+    global text_objects
     if rel_pos is None:
         rel_pos = [5, 5, 5]
-    if text_id in all_objects.keys():
-        plt.remove(all_objects[text_id]['text'])
-        rel_pos = all_objects[text_id]['pos']
+    if text_id in text_objects.keys():
+        plt.remove(text_objects[text_id]['text'])
+        rel_pos = text_objects[text_id]['pos']
     new_text = add_text(value, pos=g_plot.min_xyz + rel_pos, silent=True, size=size)
-    all_objects[text_id] = {
+    text_objects[text_id] = {
         'text': new_text,
         'pos': rel_pos
     }
@@ -895,12 +946,13 @@ def move_camera(point):
 
 
 def get_file_names(required_files):
+    global g_plot
     file_names = {}
     if required_files is None or len(required_files) == 0:
         return file_names
 
     use_defaults = True
-    tkinter.Tk().withdraw()
+    g_plot.tk_root.withdraw()
     file_types = {
         'PLY': {'ext': ('.ply'), 'title': 'PLY File', 'desc': 'Point-cloud file', 'default': 't3.ply'},
         'TIF': {'ext': ('.tif', '.tiff'), 'title': 'TIF File', 'desc': 'Tagged Image File', 'default': '3_1.tif'},
@@ -1111,7 +1163,6 @@ class LocalPlotter:
     scale_f = 1.0
     last_key_press = None
     smooth_factor = 0
-    temp_dict: {}
     inp_q: multiprocessing.Queue
     out_q: multiprocessing.Queue
     timerID = None
@@ -1121,11 +1172,13 @@ class LocalPlotter:
     plotted_lines = []
     rect_points = []
     show_ele_list = []
+    tk_root = tkinter.Tk()
+    vehicle_data = {}
 
 
 ''' All the global variables declared '''
 g_plot = LocalPlotter()
-all_objects = {
+text_objects = {
 }
 all_tasks = {
 }

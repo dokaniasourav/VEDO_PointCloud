@@ -603,14 +603,14 @@
 #
 #
 # def update_text(text_id, value, rel_pos=None, size=TEXT_SIZE):
-#     global all_objects
+#     global text_objects
 #     if rel_pos is None:
 #         rel_pos = [5, 5, 5]
-#     if text_id in all_objects.keys():
-#         plt.remove(all_objects[text_id]['text'])
-#         rel_pos = all_objects[text_id]['pos']
+#     if text_id in text_objects.keys():
+#         plt.remove(text_objects[text_id]['text'])
+#         rel_pos = text_objects[text_id]['pos']
 #     new_text = add_text(value, pos=g_plot.min_xyz + rel_pos, silent=True, size=size)
-#     all_objects[text_id] = {
+#     text_objects[text_id] = {
 #         'text': new_text,
 #         'pos': rel_pos
 #     }
@@ -1119,7 +1119,7 @@
 #
 # ''' All the global variables declared '''
 # g_plot = LocalPlotter()
-# all_objects = {
+# text_objects = {
 # }
 # all_tasks = {
 # }

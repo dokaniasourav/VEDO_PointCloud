@@ -6,6 +6,7 @@ import math
 import sys
 import time
 from scipy.optimize import minimize
+
 # from scipy.optimize import basinhopping
 
 """
@@ -270,7 +271,7 @@ def get_rotation_angles(front_left, front_right, back_left, back_right, tire_con
                         vehicle_tire_body_back_right):
     # Calculate the angles that the vehicle base should rotate in 3d space
     length = sqrt(((tire_contact_back_left[1] - tire_contact_front_right[1]) ** 2) + (
-                (tire_contact_back_left[0] - tire_contact_front_right[0]) ** 2))
+            (tire_contact_back_left[0] - tire_contact_front_right[0]) ** 2))
 
     z_change_left_side = tire_contact_front_left[2] - tire_contact_back_left[2]  # long side
 
@@ -319,7 +320,8 @@ def get_rotation_angles(front_left, front_right, back_left, back_right, tire_con
     return front_back_rot_angle, side_rot_angle, front_back_rot_point, side_rot_point, rot_point
 
 
-# TODO: THIS COULD BE IMPROVED --> The initialization of the vehicle is not accurate when it is initialized on significant slopes
+#: THIS COULD BE IMPROVED --> The initialization of the vehicle is not accurate when
+#  it is initialized on significant slopes
 def minimum_avg_dist_to_ground(params):
     global vehicle, lines, front_overhang, back_overhang, wheel_radius, v_len, v_width, cur_direction, front_back_rot_angle, side_rot_angle, x_unit, y_unit, front_back_rot_point, side_rot_point, rot_point
     test_front_back_rot_angle, test_side_rot_angle = params

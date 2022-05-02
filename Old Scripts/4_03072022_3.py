@@ -140,7 +140,7 @@
 #             )
 #             update_text('text4', 'Select no of points on slider')
 #             update_text('text5', f'Max points = {max_points}, click anywhere on map to finish selection')
-#             all_objects['slider'] = plt.actors[-1:]
+#             text_objects['slider'] = plt.actors[-1:]
 #             loc_plotter.smooth_factor = 0
 #             loc_plotter.slider_selected = True
 #
@@ -288,14 +288,14 @@
 #
 #
 # def update_text(text_id, value, rel_pos=None, size=TEXT_SIZE):
-#     global all_objects
+#     global text_objects
 #     if rel_pos is None:
 #         rel_pos = [5, 5, 5]
-#     if text_id in all_objects.keys():
-#         plt.remove(all_objects[text_id]['text'])
-#         rel_pos = all_objects[text_id]['pos']
+#     if text_id in text_objects.keys():
+#         plt.remove(text_objects[text_id]['text'])
+#         rel_pos = text_objects[text_id]['pos']
 #     new_text = add_text(value, pos=loc_plotter.min_xyz + rel_pos, silent=True, size=size)
-#     all_objects[text_id] = {
+#     text_objects[text_id] = {
 #         'text': new_text,
 #         'pos': rel_pos
 #     }
@@ -537,7 +537,7 @@
 # loc_plotter = LocalPlotter()
 # last_pt = [0, 0, 0]
 # max_points = 0
-# all_objects = {
+# text_objects = {
 # }
 # all_tasks = {
 # }

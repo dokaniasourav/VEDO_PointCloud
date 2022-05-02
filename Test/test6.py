@@ -53,7 +53,8 @@ def gui_main():
             ent = tk.Entry(root, textvariable=fields[i]['data'])
             ent.insert(tk.END, fields[i]['default'])
             ent.grid(column=1, row=i, sticky=tk.E, padx=5, pady=5)
-    tk.Button(root, text='Confirm', command=lambda: get_values(root, fields)).grid(column=1, row=len(fields), sticky=tk.E, padx=5, pady=5)
+    tk.Button(root, text='Confirm', command=lambda: get_values(root, fields)
+              ).grid(column=1, row=len(fields), sticky=tk.E, padx=5, pady=5)
     root.mainloop()
 
 ##
