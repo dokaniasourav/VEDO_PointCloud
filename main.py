@@ -2,6 +2,8 @@ import os
 import sys
 import csv
 import time
+from pprint import pprint
+
 import vedo
 import math
 import random
@@ -85,7 +87,6 @@ def on_key_press(event):
             print("=== ENTER VEHICLE MODE ====")
             update_text('text5', 'Vehicle mode is ON')
             g_plot.plotter_mode = VEHICLE_RUNNER
-            get_vehicle_data()
 
     # elif event.keyPressed in [str(e) for e in range(0, 9)]:
     #     handle_inp()
@@ -221,6 +222,22 @@ def on_left_click(event):
         elif g_plot.plotter_mode == RECTANGLE_MODE:
             add_point(cpt, size=RD_3, col='yellow')
             g_plot.current_points.append(cpt)
+        elif g_plot.plotter_mode == VEHICLE_RUNNER:
+            print('Add the starting position for Vehicle')
+            new_window = multiprocessing.Process(target=get_vehicle_data, args=(g_plot.out_q, ))
+            new_window.start()
+            new_window.join()
+            if not g_plot.out_q.empty():
+                g_plot.vehicle_data = g_plot.out_q.get()
+                print(g_plot.vehicle_data.__dict__)
+            add_point(cpt, size=RD_3, col='hotpink')
+            g_plot.plotter_mode = IDEAL_PLT_MODE
+            g_plot.vehicle_data.height = g_plot.vehicle_data.wheel_radius * 4
+            g_plot.vehicle_data.position = [cpt[0], cpt[1], cpt[2] + g_plot.vehicle_data.height]
+            g_plot.vehicle = vedo.Box(pos=g_plot.vehicle_data.position,
+                                      width=g_plot.vehicle_data.width, height=g_plot.vehicle_data.height,
+                                      length=g_plot.vehicle_data.length, alpha=0.2)
+            plt.add(g_plot.vehicle)
 
         if len(g_plot.current_points) == 1:
             if not g_plot.tracking_mode:
@@ -257,6 +274,8 @@ def on_left_click(event):
                 g_plot.current_points = []
             elif g_plot.plotter_mode == RECTANGLE_MODE:
                 update_text('text4', 'Make the desired rectangle')
+            # elif g_plot.plotter_mode == VEHICLE_RUNNER:
+            #     update_text('text4', 'Make the desired vehicle')
         elif len(g_plot.current_points) == 3:
             rect_points = get_rectangle(g_plot.current_points)
             rem_all_trackers()
@@ -265,12 +284,19 @@ def on_left_click(event):
             plt.remove(g_plot.plotted_points.pop())
             for vertex in range(0, 4):
                 add_point(rect_points[vertex], size=RD_4, col='Green')
+                add_text(f'P_{vertex}', pos=rect_points[vertex])
                 add_line([rect_points[vertex], rect_points[vertex - 1]], width=3, col='lightblue')
             move_camera((rect_points[0] + rect_points[1] +
                          rect_points[2] + rect_points[3]) / 4)
+            # if g_plot.plotter_mode == VEHICLE_RUNNER:
+            #     g_plot.vehicle_data['coord'] = rect_points
+            #     g_plot.vehicle_data['VL'] = dist_xyz(rect_points[1], rect_points[2])
+            #     g_plot.vehicle_data['VW'] = dist_xyz(rect_points[0], rect_points[1])
+            #     get_vehicle_data()
+            # elif g_plot.plotter_mode == RECTANGLE_MODE:
             g_plot.rect_points = rect_points
             update_text('text4', 'Add the first point to draw a line')
-        elif len(g_plot.current_points) == 4 or len(g_plot.current_points) == 5:
+        elif g_plot.plotter_mode == RECTANGLE_MODE and len(g_plot.current_points) >= 4:
             d_sign = 0
             if len(g_plot.current_points) == 4:
                 x_p, y_p = g_plot.current_points[3][0], g_plot.current_points[3][1]
@@ -445,9 +471,9 @@ def on_left_click(event):
 
 
 def mouse_track(event):
-    global g_plot, g_plot
+    global g_plot
 
-    if not g_plot.tracking_mode:
+    if g_plot.tracking_mode == IDEAL_PLT_MODE:
         return
 
     # Track the mouse if a point has already been selected
@@ -532,51 +558,64 @@ def get_rectangle(points):
     return [points[1], points[0], new_point_1, new_point_2]
 
 
-def get_vehicle_data():
-    global g_plot
-    root = g_plot.tk_root
+def get_vehicle_data(gui_q,):
+    root = tkinter.Tk()
     root.title('Vehicle Attribute Selection')
     root.columnconfigure(0, weight=1)
     root.columnconfigure(1, weight=4)
 
     fields = {
-        0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 5.0, 'min_v': 0.0,
+        0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 10.0, 'min_v': 0.0,
             's_name': '__', 'name': 'Enter the required vehicle parameters'},
-        1: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
-            's_name': 'BO', 'name': 'Back Overhang'},
-        2: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
-            's_name': 'FO', 'name': 'Front Overhang'},
-        3: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
-            's_name': 'WR', 'name': 'Wheel Radius'},
-        4: {'data': tkinter.StringVar(), 'default': '4',   'max_v': 5.0, 'min_v': 0.0,
-            's_name': 'NW', 'name': 'Number of wheels'},
-        5: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
-            's_name': 'BL', 'name': 'Base Length'},
-        6: {'data': tkinter.StringVar(), 'default': '1.0', 'max_v': 5.0, 'min_v': 0.0,
-            's_name': 'VW', 'name': 'Vehicle Width'}
+        1: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 10.0, 'min_v': 0.1,
+            's_name': 'back_overhang', 'name': 'Back Overhang'},
+        2: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 10.0, 'min_v': 0.1,
+            's_name': 'front_overhang', 'name': 'Front Overhang'},
+        3: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 20.0, 'min_v': 0.1,
+            's_name': 'wheel_radius', 'name': 'Wheel Radius'},
+        4: {'data': tkinter.StringVar(), 'default': '4',   'max_v': 16.0, 'min_v': 1.0,
+            's_name': 'num_wheels', 'name': 'Number of wheels'},
+        5: {'data': tkinter.StringVar(), 'default': '8.0', 'max_v': 40.0, 'min_v': 1.0,
+            's_name': 'length', 'name': 'Vehicle Length'},
+        6: {'data': tkinter.StringVar(), 'default': '3.0', 'max_v': 20.0, 'min_v': 1.0,
+            's_name': 'width', 'name': 'Vehicle Width'}
     }
 
+    print('Enter vehicle attributes in dialog box')
     for i in range(0, 7):
-        tkinter.Label(root, text=fields[i]['name'], borderwidth=2, font=10
-                 ).grid(column=0, row=i, sticky=tkinter.W, padx=5, pady=5)
-        if i != 0:
+        tkinter.Label(root, text=fields[i]['name'], borderwidth=2, font=10).grid(
+            column=0, row=i, sticky=tkinter.W, padx=5, pady=5)
+        if i == 0:
+            continue
+        elif i < 7:
+            fields[i]['data'].set(fields[i]['default'])
             ent = tkinter.Entry(root, textvariable=fields[i]['data'])
-            ent.insert(tkinter.END, fields[i]['default'])
             ent.grid(column=1, row=i, sticky=tkinter.E, padx=5, pady=5)
-    tkinter.Button(root, text='Confirm', command=lambda: get_values(root, fields)
+
+    tkinter.Button(root, text='Confirm', command=lambda: get_values(root, fields, gui_q)
                    ).grid(column=1, row=len(fields), sticky=tkinter.E, padx=5, pady=5)
     root.mainloop()
+    root.destroy()
+    print('GUI Ends here')
+    exit()
 
 
-def get_values(root, field_entries):
+def get_values(root, field_entries, gui_q):
     global g_plot
+    vehicle_data = VehicleData()
     try:
         for field_entry in field_entries:
             fe = field_entries[field_entry]
             dt = fe['data'].get()
-            if fe['min_v'] < float(dt) < fe['max_v']:
-                g_plot.vehicle_data[fe['s_name']] = dt
-                print(fe['name'], ' = ', dt)
+            if field_entry == 0:
+                continue
+            elif field_entry < 7:
+                if fe['min_v'] <= float(dt) <= fe['max_v']:
+                    setattr(vehicle_data, fe['s_name'], float(dt))
+                else:
+                    print('Error: Value is out of bound')
+        pprint(vehicle_data.__dict__)
+        gui_q.put(vehicle_data)
         root.destroy()
     except Exception as e:
         print(e)
@@ -984,6 +1023,7 @@ def get_file_names(required_files):
             print(f'Invalid {file_t} file path: {file_names[file_t]}')
             exit(1)
 
+    g_plot.tk_root.destroy()
     return file_names
 
 
@@ -1147,6 +1187,17 @@ def get_angle(point1, point2):
     # return angle_measure
 
 
+class VehicleData:
+    width: float
+    length: float
+    height: float
+    position: []
+    num_wheels: int
+    wheel_radius: float
+    back_overhang: float
+    front_overhang: float
+
+
 class LocalPlotter:
     plotter_mode = IDEAL_PLT_MODE
     # slope_avg_mode = False
@@ -1165,6 +1216,7 @@ class LocalPlotter:
     smooth_factor = 0
     inp_q: multiprocessing.Queue
     out_q: multiprocessing.Queue
+    gui_q: multiprocessing.Queue
     timerID = None
     current_points = []
     plotted_trackers = []
@@ -1173,7 +1225,8 @@ class LocalPlotter:
     rect_points = []
     show_ele_list = []
     tk_root = tkinter.Tk()
-    vehicle_data = {}
+    vehicle = vedo.Box()
+    vehicle_data = VehicleData()
 
 
 ''' All the global variables declared '''
