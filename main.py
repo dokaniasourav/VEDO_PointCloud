@@ -224,7 +224,7 @@ def on_left_click(event):
             g_plot.current_points.append(cpt)
         elif g_plot.plotter_mode == VEHICLE_RUNNER:
             print('Add the starting position for Vehicle')
-            new_window = multiprocessing.Process(target=get_vehicle_data, args=(g_plot.out_q, ))
+            new_window = multiprocessing.Process(target=get_vehicle_data, args=(g_plot.out_q,))
             new_window.start()
             new_window.join()
             if not g_plot.out_q.empty():
@@ -232,12 +232,92 @@ def on_left_click(event):
                 print(g_plot.vehicle_data.__dict__)
             add_point(cpt, size=RD_3, col='hotpink')
             g_plot.plotter_mode = IDEAL_PLT_MODE
-            g_plot.vehicle_data.height = g_plot.vehicle_data.wheel_radius * 4
-            g_plot.vehicle_data.position = [cpt[0], cpt[1], cpt[2] + g_plot.vehicle_data.height]
-            g_plot.vehicle = vedo.Box(pos=g_plot.vehicle_data.position,
-                                      width=g_plot.vehicle_data.width, height=g_plot.vehicle_data.height,
-                                      length=g_plot.vehicle_data.length, alpha=0.2)
-            plt.add(g_plot.vehicle)
+            g_plot.vehicle_data.height = g_plot.vehicle_data.wheel_radius/2
+            g_plot.vehicle_data.position = [cpt[0], cpt[1], (cpt[2] + g_plot.vehicle_data.wheel_radius)]
+
+            veh_x = g_plot.vehicle_data.position[0]
+            veh_y = g_plot.vehicle_data.position[1]
+            veh_z = g_plot.vehicle_data.position[2]
+
+            veh_l = g_plot.vehicle_data.length
+            veh_f = g_plot.vehicle_data.front_overhang
+            veh_b = g_plot.vehicle_data.back_overhang
+            veh_w = g_plot.vehicle_data.width
+            veh_h = g_plot.vehicle_data.height
+
+            whl_r = g_plot.vehicle_data.wheel_radius
+            whl_h = 0.25
+            whl_center = [[veh_x - veh_l/2.0, veh_y - veh_w/2.0, veh_z],  # left, bottom
+                          [veh_x + veh_l/2.0, veh_y - veh_w/2.0, veh_z],  # right, bottom
+                          [veh_x - veh_l/2.0, veh_y + veh_w/2.0, veh_z],  # left, top
+                          [veh_x + veh_l/2.0, veh_y + veh_w/2.0, veh_z]]  # right, top
+
+            box_bottom = [[veh_x - veh_l/2.0 - veh_b, veh_y - veh_w/2.0, veh_z - veh_h/2.0],
+                          [veh_x + veh_l/2.0 + veh_f, veh_y - veh_w/2.0, veh_z - veh_h/2.0],
+                          [veh_x - veh_l/2.0 - veh_b, veh_y + veh_w/2.0, veh_z - veh_h/2.0],
+                          [veh_x + veh_l/2.0 + veh_f, veh_y + veh_w/2.0, veh_z - veh_h/2.0]]
+
+            whl_bottom = [[whl_center[i][0], whl_center[i][1], whl_center[i][2] - whl_r] for i in range(0, 4)]
+
+            whl_bottom_fix = []
+            for i in range(0, 4):
+                whl_bottom_fix.append(find_closest_point(whl_bottom[i], num_retry=30, dist_threshold=0.1))
+                print(whl_bottom[i][2] - whl_bottom_fix[i][2])
+
+            pair_points = [
+                [0, 1, 2],
+                [1, 0, 3],
+                [2, 0, 3],
+                [3, 1, 2]]
+            cen_bottom = two_point_op([whl_bottom[0], whl_bottom[3]], op='AVG')
+
+            whl_object = [vedo.Cylinder(whl_center[i], r=whl_r, height=whl_h, axis=(0, 1, 0),
+                                        alpha=0.6).triangulate().c('purple') for i in range(0, 4)]
+
+            ln_obj = [vedo.Line(whl_center[0], whl_center[3], closed=True, c='red', alpha=0.3),
+                      vedo.Line(whl_center[2], whl_center[1], closed=True, c='red', alpha=0.3)]
+
+            veh_cen = [veh_x + (veh_f - veh_b)/2.0, veh_y, veh_z]
+            box = vedo.Box(veh_cen, length=(veh_l+veh_f+veh_b), width=veh_w, height=veh_h,
+                           alpha=0.4).triangulate().c('pink')
+            mesh_rad = 1.0
+            con = []
+            mesh = []
+            for i, pt in enumerate(box_bottom):
+                close_pt = cloud.closestPoint(pt, radius=mesh_rad)
+                if len(close_pt) > 2:
+                    mesh_i = vedo.delaunay2D(close_pt)
+                    mesh_i.c('hotpink')
+                    con_i = mesh_i.intersectWith(box)
+                    con.append(con_i)
+                    mesh.append(mesh_i)
+                    print(len(con_i.points()))
+            for i in range(0, 4):
+                add_text(f'P_{i}', pos=box_bottom[i], size=1)
+            print('Cons = ', con)
+            veh_obj = [box]
+            veh_obj.extend(whl_object)
+            veh_obj.extend(ln_obj)
+            veh_obj.extend(mesh)
+            veh_obj.extend(con)
+            plt.add(veh_obj)
+
+            print('Add a path for vehicle to follow')
+
+            # rot = 4
+            # for i in range(-11, 10, 2):
+            #     rot = i
+            #     box.rotate(angle=rot, point=cpt, axis=(0, 0, 1))
+            #     for j in range(0, 4):
+            #         whl_object[j].rotate(angle=rot, point=whl_center[j], axis=(0, 0, 1))
+            #     for j in range(0, 2):
+            #         ln_obj[j].rotate(angle=rot, point=cpt, axis=(0, 0, 1))
+            #     whl_center[3], whl_center[0] = ln_obj[0].points()
+            #     whl_center[2], whl_center[1] = ln_obj[1].points()
+            #
+            #     for j in range(0, 4):
+            #         whl_object[j].pos(whl_center[j])
+            #     plt.render()
 
         if len(g_plot.current_points) == 1:
             if not g_plot.tracking_mode:
@@ -558,7 +638,7 @@ def get_rectangle(points):
     return [points[1], points[0], new_point_1, new_point_2]
 
 
-def get_vehicle_data(gui_q,):
+def get_vehicle_data(gui_q, ):
     root = tkinter.Tk()
     root.title('Vehicle Attribute Selection')
     root.columnconfigure(0, weight=1)
@@ -573,7 +653,7 @@ def get_vehicle_data(gui_q,):
             's_name': 'front_overhang', 'name': 'Front Overhang'},
         3: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_radius', 'name': 'Wheel Radius'},
-        4: {'data': tkinter.StringVar(), 'default': '4',   'max_v': 16.0, 'min_v': 1.0,
+        4: {'data': tkinter.StringVar(), 'default': '4', 'max_v': 16.0, 'min_v': 1.0,
             's_name': 'num_wheels', 'name': 'Number of wheels'},
         5: {'data': tkinter.StringVar(), 'default': '8.0', 'max_v': 40.0, 'min_v': 1.0,
             's_name': 'length', 'name': 'Vehicle Length'},
@@ -595,8 +675,6 @@ def get_vehicle_data(gui_q,):
     tkinter.Button(root, text='Confirm', command=lambda: get_values(root, fields, gui_q)
                    ).grid(column=1, row=len(fields), sticky=tkinter.E, padx=5, pady=5)
     root.mainloop()
-    root.destroy()
-    print('GUI Ends here')
     exit()
 
 
@@ -619,6 +697,8 @@ def get_values(root, field_entries, gui_q):
         root.destroy()
     except Exception as e:
         print(e)
+
+
 # The get_line_of_points takes the two endpoints, then does its best to get the pt along the path of the line
 # that are on the ground of the point cloud Does this by iterating through the pt that make up the line in
 # space, then getting the closest point that is actually a part of the mesh to that point
@@ -911,6 +991,7 @@ def reset_plot():
     g_plot.current_points = []
     g_plot.tracking_mode = False
 
+
 # def get_list(num_elements, arr):
 #     arr_len = len(arr)
 #     return [arr[(i * arr_len // num_elements) + (arr_len // (2 * num_elements))] for i in range(num_elements)]
@@ -991,7 +1072,8 @@ def get_file_names(required_files):
         return file_names
 
     use_defaults = True
-    g_plot.tk_root.withdraw()
+    root = tkinter.Tk()
+    root.withdraw()
     file_types = {
         'PLY': {'ext': ('.ply'), 'title': 'PLY File', 'desc': 'Point-cloud file', 'default': 't3.ply'},
         'TIF': {'ext': ('.tif', '.tiff'), 'title': 'TIF File', 'desc': 'Tagged Image File', 'default': '3_1.tif'},
@@ -1023,8 +1105,12 @@ def get_file_names(required_files):
             print(f'Invalid {file_t} file path: {file_names[file_t]}')
             exit(1)
 
-    g_plot.tk_root.destroy()
+    root.destroy()
     return file_names
+
+
+def button_func():
+    print('Pressed')
 
 
 def toggle_state(queue_obj: multiprocessing.Queue, value):
@@ -1106,6 +1192,7 @@ def plt_main(inp_q, out_q):
     g_plot.min_xyz = np.min(cloud.points(), axis=0)
     g_plot.max_xyz = np.max(cloud.points(), axis=0)
     cloud = cloud.pos(x=0 - g_plot.min_xyz[0], y=0 - g_plot.min_xyz[1], z=0 - g_plot.min_xyz[2])
+    # cloud.cmap('terrain').addScalarBar()
     print(f'Loaded cloud {ply_file} in {time.time() - st} sec')
     ################################################################################################
     g_plot.geo_xyz[2] = g_plot.min_xyz[2]
@@ -1135,10 +1222,11 @@ def plt_main(inp_q, out_q):
     plt.addCallback('Enter', enter_callback)
     plt.addCallback('Leave', leave_callback)
     print('Once the program launches, Use the following keymap:'
-          '\n\t \'z\'   for Slope mode'
-          '\n\t \'r\'   for Rectangle Mode'
-          '\n\t \'c\'   for Clearing everything'
-          '\n\t \'u\'   for Resetting the plot'
+          '\n\t \'z\' or \'Z\'  for Slope mode'
+          '\n\t \'v\' or \'V\'  for Vehicle Mode'
+          '\n\t \'r\' or \'R\'  for Rectangle Mode'
+          '\n\t \'u\' or \'z\'  for Resetting the plot'
+          '\n\t \'c\' or \'z\'  for Clearing everything'
           '\n\t \'Esc\' to Close everything')
 
     st = time.time()
@@ -1196,6 +1284,8 @@ class VehicleData:
     wheel_radius: float
     back_overhang: float
     front_overhang: float
+    path_points = []
+    path_lines = []
 
 
 class LocalPlotter:
@@ -1224,7 +1314,6 @@ class LocalPlotter:
     plotted_lines = []
     rect_points = []
     show_ele_list = []
-    tk_root = tkinter.Tk()
     vehicle = vedo.Box()
     vehicle_data = VehicleData()
 
