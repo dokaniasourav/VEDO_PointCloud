@@ -23,6 +23,7 @@ import Helper as HpF
 # import concurrent.futures
 # import threading
 
+
 '''Script for plotting and finding average slope of points along a path: 
 
 1. Firstly, click on the map to initialize it
@@ -187,18 +188,6 @@ def on_left_click(event):
     if event.picked3d is None:
         return
 
-    # find_closest_point(vector(list(event.picked3d)))
-
-    # if g_plot.slider_selected:
-    #     # Get actual pt
-    #     plt.sliders = []
-    #     plt.render()
-    #     print(f'Number of pt on the line: {max_points}')
-    #     update_text('text4', f'Please wait ...')
-    #     get_avg_slope()
-    #     g_plot.slider_selected = False
-    #     g_plot.current_points = []
-
     if g_plot.plotter_mode != GLOB.IDEAL_PLT_MODE:
         cpt2 = vedo.vector(list(event.picked3d))
         cpt = find_closest_point(cpt2)
@@ -212,13 +201,13 @@ def on_left_click(event):
             g_plot.current_points.append(cpt)
         elif g_plot.plotter_mode == GLOB.VEHICLE_RUNNER:
             ## Getting the attributes of the vehicle using a separate function
-            print('Add the starting position for Vehicle')
+            print('Click to add a starting position for Vehicle')
             new_window = multiprocessing.Process(target=get_vehicle_data, args=(g_plot.out_q,))
             new_window.start()
             new_window.join()
             if not g_plot.out_q.empty():
                 g_plot.vehicle_data = g_plot.out_q.get()
-                print(g_plot.vehicle_data.__dict__)
+
             ## Temporary point for representation of the clicked point
             add_point(cpt, size=GLOB.RD_3, col='hotpink')
             g_plot.plotter_mode = GLOB.IDEAL_PLT_MODE
@@ -235,119 +224,225 @@ def on_left_click(event):
 
             veh_x = g_plot.vehicle_data.position[0]
             veh_y = g_plot.vehicle_data.position[1]
-            ## Add some vertical offset to the vehicle for proper positioning
-            veh_z = g_plot.vehicle_data.position[2] + 5
+            veh_z = g_plot.vehicle_data.position[2] + 2
 
             ## Ignoring the wheel width effect for now
-            whl_bottom = [[veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # left, bottom
+            whl_bottoms = [[veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # left, bottom
                           [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # right, bottom
                           [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r],  # left, top
                           [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r]]  # right, top
-            whl_bottom_fix = []
-            for i in range(0, 4):
-                close_pt = find_closest_point(whl_bottom[i], num_retry=200, dist_threshold=0.3, aggressive=200)
-                if close_pt is None:
-                    return
-                whl_bottom_fix.append(close_pt)
-                add_line([whl_bottom[i], close_pt])
 
-            min_dis_pi = 0
-            for i in range(1, 4):
-                if whl_bottom[i][2] - whl_bottom_fix[i][2] < whl_bottom[min_dis_pi][2] - whl_bottom_fix[min_dis_pi][2]:
-                    min_dis_pi = i
+            ## Ignoring the wheel width effect for now
+            whl_centers = [[veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z],  # left, bottom
+                          [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z],  # right, bottom
+                          [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z],  # left, top
+                          [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z]]  # right, top
 
-            whl_center = []
-            box_bottom = []
+            whl_points = []
+            connections = []
+            box_coord = []
             bottom_x_adj = [-veh_b, veh_f, -veh_b, veh_f]
-            dist_diff = whl_bottom[min_dis_pi][2] - whl_bottom_fix[min_dis_pi][2]
             for i in range(0, 4):
-                whl_bottom[i][2] -= dist_diff
-                whl_center.append([whl_bottom[i][0], whl_bottom[i][1], whl_bottom[i][2] + whl_r])
-                box_bottom.append([whl_bottom[i][0] + bottom_x_adj[i],
-                                   whl_bottom[i][1],
-                                   whl_bottom[i][2] + whl_r - veh_h / 2.0])
+                box_coord.append([whl_centers[i][0] + bottom_x_adj[i],
+                                  whl_centers[i][1], whl_centers[i][2] - veh_h / 2.0])
 
             for i in range(0, 4):
-                if i != min_dis_pi:
-                    add_line([whl_bottom[min_dis_pi], whl_bottom[i]], width=2)
+                box_coord.append([whl_centers[i][0] + bottom_x_adj[i],
+                                  whl_centers[i][1], whl_centers[i][2] + veh_h / 2.0])
 
-            num_try = -10
+            num_pts = 60
+            for wi, whl_center in enumerate(whl_centers):
+                side_angle = 0 # np.pi / 4
+                add_point(whl_center, custom_text=f'{wi}_wheel', size=GLOB.RD_3, col='hotpink')
+                whl_y_off = [-whl_h, -whl_h, whl_h, whl_h]
+                for i in range(0, num_pts):
+                    ang = 360/num_pts * i * np.pi / 180
+                    whl_rim_point_1 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
+                                       whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle),
+                                       whl_center[2] + whl_r * np.math.sin(ang)]
+                    whl_rim_point_2 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
+                                       whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) + whl_y_off[wi],
+                                       whl_center[2] + whl_r * np.math.sin(ang)]
+                    whl_points.append(whl_rim_point_1)
+                    whl_points.append(whl_rim_point_2)
+                    connections.append([(i*2+0) % (num_pts*2) + wi*num_pts*2,
+                                        (i*2+1) % (num_pts*2) + wi*num_pts*2,
+                                        (i*2+2) % (num_pts*2) + wi*num_pts*2])
+                    connections.append([(i*2+1) % (num_pts*2) + wi*num_pts*2,
+                                        (i*2+2) % (num_pts*2) + wi*num_pts*2,
+                                        (i*2+3) % (num_pts*2) + wi*num_pts*2])
+                    # plt.add(vedo.Cylinder(whl_center, r=whl_r, height=whl_h, axis=(0, 1, 0)))
 
-            # diagonal_point = [3, 2, 1, 0]
-            pivot_point = copy.deepcopy(whl_bottom[min_dis_pi])
-            diag_point_id = 3 - min_dis_pi
-            diag_point = copy.deepcopy(whl_bottom[diag_point_id])
-            diag_angle = HpF.get_xy_angle([diag_point, pivot_point])
-            diag_dist = HpF.dist_xyz([pivot_point, diag_point])
-            side_point_ind = [[1, 2], [0, 3], [0, 3], [1, 2]]
-            side_point_1 = copy.deepcopy(whl_bottom[side_point_ind[min_dis_pi][0]])
-            side_point_2 = copy.deepcopy(whl_bottom[side_point_ind[min_dis_pi][1]])
-            side_angle = diag_angle - HpF.get_xy_angle([diag_point, side_point_1])
-            print('Side Angle = ', side_angle)
-            side_ext_dist_1 = HpF.dist_xy([diag_point, side_point_1]) * np.math.cos(side_angle)
-            side_ext_point_1 = [diag_point[0] + side_ext_dist_1 * np.math.cos(diag_angle - np.pi / 2),
-                                diag_point[1] + side_ext_dist_1 * np.math.sin(diag_angle - np.pi / 2),
-                                diag_point[2]]
-            side_ext_dist_2 = HpF.dist_xy([diag_point, side_point_2]) * np.math.sin(side_angle)
-            side_ext_point_2 = [diag_point[0] + side_ext_dist_2 * np.math.cos(diag_angle + np.pi / 2),
-                                diag_point[1] + side_ext_dist_2 * np.math.sin(diag_angle + np.pi / 2),
-                                diag_point[2]]
-            add_point(side_ext_point_1, custom_text='SEP1')
-            add_point(side_ext_point_2, custom_text='SEP2')
-            add_point(side_point_1, custom_text='SP1')
-            add_point(side_point_2, custom_text='SP2')
-            add_point(diag_point, custom_text='DP')
-            add_point(pivot_point, custom_text='PP')
-            add_line([diag_point, side_ext_point_1], width=2, col='green')
-            add_line([side_point_1, side_ext_point_1], width=2, col='green')
-            add_line([diag_point, side_ext_point_2], width=2, col='green')
-            add_line([side_point_2, side_ext_point_2], width=2, col='green')
-            while num_try < 100:
-                z_angle = HpF.get_z_angle([pivot_point, diag_point]) - (1.0 * num_try)
-                diag_xy_dist = diag_dist * np.math.cos(z_angle * np.pi / 180)
-                diag_nx_point = pivot_point[0] - diag_xy_dist * np.math.cos(diag_angle * np.pi / 180)
-                diag_ny_point = pivot_point[1] - diag_xy_dist * np.math.sin(diag_angle * np.pi / 180)
-                diag_nz_point = pivot_point[2] + diag_dist * np.math.sin(z_angle * np.pi / 180)
-                diag_new_point = [diag_nx_point, diag_ny_point, diag_nz_point]
+            whl_points.extend(box_coord)
+            offset = 4*num_pts*2
+            ## Extend box coordinates to make the box mesh
+            connections.extend([
+                [offset + 0, offset + 1, offset + 2],
+                [offset + 1, offset + 2, offset + 3],
 
-                # side_nx_point = pivot_point[0] +  + new_xy_dist * np.math.cos(diag_angle * np.pi / 180)
-                # side_ny_point = pivot_point[1] + new_xy_dist * np.math.sin(diag_angle * np.pi / 180)
-                # side_nz_point = pivot_point[2] + diag_dist * np.math.sin(z_angle * np.pi / 180)
-                # side_new_point = [diag_nx_point, diag_ny_point, diag_nz_point]
-                add_point(diag_new_point, size=GLOB.RD_3, col='blue')
-                num_try += 1
+                [offset + 0, offset + 2, offset + 4],
+                [offset + 2, offset + 4, offset + 6],
 
-            ## Got points, calculated data. Now to add the box
-            # Vehicle center point
-            veh_cen = [veh_x + (veh_f - veh_b) / 2.0, veh_y, whl_center[min_dis_pi][2]]
-            # Vehicle wheels rep by a cylinder
-            whl_objs = [vedo.Cylinder(whl_center[i], r=whl_r, height=whl_h, axis=(0, 1, 0),
-                                      alpha=0.6).triangulate().c('purple') for i in range(0, 4)]
-            # Temp lines diagonally for the vehicle rep
-            ln_objs = [vedo.Line(whl_center[0], whl_center[3], closed=True, c='red', alpha=0.3),
-                       vedo.Line(whl_center[2], whl_center[1], closed=True, c='red', alpha=0.3)]
-            # Vehicle body rep by a box
-            box_obj = vedo.Box(veh_cen, length=(veh_l + veh_f + veh_b), width=veh_w, height=veh_h,
-                               alpha=0.4).triangulate().c('pink')
-            mesh_rad = 1.0
-            con = []
-            mesh = []
-            for i, pt in enumerate(box_bottom):
-                close_pt = cloud.closestPoint(pt, radius=mesh_rad)
-                if len(close_pt) > 2:
-                    mesh_i = vedo.delaunay2D(close_pt)
-                    mesh_i.c('hotpink')
-                    con_i = mesh_i.intersectWith(box_obj)  # Intersection areas to show
-                    con.append(con_i)
-                    mesh.append(mesh_i)
-                    print(len(con_i.points()))
-            for i in range(0, 4):
-                add_text(f'P_{i}', pos=box_bottom[i], size=1)
-            print('Cons = ', con)
-            veh_objs = []
-            veh_objs.extend(ln_objs)
-            # veh_objs.extend(whl_objs)
-            plt.add(veh_objs)
+                [offset + 0, offset + 1, offset + 4],
+                [offset + 1, offset + 4, offset + 5],
+
+                [offset + 4, offset + 5, offset + 6],
+                [offset + 5, offset + 6, offset + 7],
+
+                [offset + 2, offset + 3, offset + 6],
+                [offset + 3, offset + 6, offset + 7],
+
+                [offset + 1, offset + 3, offset + 5],
+                [offset + 3, offset + 5, offset + 7]
+            ])
+
+            ## Wheel mesh object along with vehicle object
+            wheel_mesh = vedo.Mesh([whl_points, connections])
+            wheel_mesh.backColor('orange4').color('orange').lineColor('black').lineWidth(1)
+            plt.add(wheel_mesh)
+            # mesh_rad = np.math.sqrt((veh_l+veh_f+veh_b)**2 + veh_w**2 + whl_r**2) / 2.0
+
+            close_points = []
+            for i, whl_bottom in enumerate(whl_bottoms):
+                close_points.append(cloud.closestPoint(whl_bottom, radius=3))
+
+            on_ground = 0b0000
+            move_down_by = 0.01
+            while True:
+                last_pos = wheel_mesh.pos()
+                wheel_mesh.pos([last_pos[0], last_pos[1], last_pos[2] - move_down_by])
+                print('Moving down by ', move_down_by)
+                for wi, close_point in enumerate(close_points):
+                    mesh_i = vedo.delaunay2D(close_point).c('pink')
+                    con_i = mesh_i.intersectWith(wheel_mesh)  # Intersection areas to show
+                    # con_i.c('blue')
+                    int_points = con_i.points()
+                    if len(int_points) > 0:
+                        print('Found ', len(int_points), ' intersection points for wheel ', wi)
+                        on_ground |= (1 << wi)
+                        break
+                if on_ground > 0:
+                    break
+                # if on_ground in [0b1111, 0b1110, 0b1101, 0b1011, 0b0111]:
+                #     print('On ground is ', on_ground)
+                #     break
+
+            # for i, pt in enumerate(whl_bottoms):
+            #     close_pt = cloud.closestPoint(pt, radius=mesh_rad)
+            #     if len(close_pt) > 2:
+            #         mesh_i = vedo.delaunay2D(close_pt).c('pink')
+            #         con_i = mesh_i.intersectWith(wheel_mesh)  # Intersection areas to show
+            #         con_i.c('blue')
+            #         con.append(con_i)
+            #         mesh.append(mesh_i)
+            #         print(len(con_i.points()))
+            #         plt.add(con_i)
+            #         plt.add(mesh_i)
+
+            # whl_bottom_fix = []
+            # for i in range(0, 4):
+            #     close_pt = find_closest_point(whl_bottom[i], num_retry=200, dist_threshold=0.3, aggressive=200)
+            #     if close_pt is None:
+            #         return
+            #     whl_bottom_fix.append(close_pt)
+            #     add_line([whl_bottom[i], close_pt])
+            #
+            # min_dis_pi = 0
+            # for i in range(1, 4):
+            #     if whl_bottom[i][2] - whl_bottom_fix[i][2] < whl_bottom[min_dis_pi][2] - whl_bottom_fix[min_dis_pi][2]:
+            #         min_dis_pi = i
+            #
+            # whl_center = []
+            # box_bottom = []
+            # bottom_x_adj = [-veh_b, veh_f, -veh_b, veh_f]
+            # dist_diff = whl_bottom[min_dis_pi][2] - whl_bottom_fix[min_dis_pi][2]
+            # for i in range(0, 4):
+            #     whl_bottom[i][2] -= dist_diff
+            #     whl_center.append([whl_bottom[i][0], whl_bottom[i][1], whl_bottom[i][2] + whl_r])
+            #     box_bottom.append([whl_bottom[i][0] + bottom_x_adj[i],
+            #                        whl_bottom[i][1],
+            #                        whl_bottom[i][2] + whl_r - veh_h / 2.0])
+            #
+            # for i in range(0, 4):
+            #     if i != min_dis_pi:
+            #         add_line([whl_bottom[min_dis_pi], whl_bottom[i]], width=2)
+            #
+            # num_try = -10
+            #
+            # pivot_point = copy.deepcopy(whl_bottom[min_dis_pi])
+            # diag_point_id = 3 - min_dis_pi
+            # diag_point = copy.deepcopy(whl_bottom[diag_point_id])
+            # diag_angle = HpF.get_xy_angle([diag_point, pivot_point])
+            # diag_dist = HpF.dist_xyz([pivot_point, diag_point])
+            # side_point_ind = [[1, 2], [0, 3], [0, 3], [1, 2]]
+            # side_point_1 = copy.deepcopy(whl_bottom[side_point_ind[min_dis_pi][0]])
+            # side_point_2 = copy.deepcopy(whl_bottom[side_point_ind[min_dis_pi][1]])
+            # side_angle = diag_angle - HpF.get_xy_angle([diag_point, side_point_1])
+            # print('Side Angle = ', side_angle)
+            # side_ext_dist_1 = HpF.dist_xy([diag_point, side_point_1]) * np.math.cos(side_angle)
+            # side_ext_point_1 = [diag_point[0] + side_ext_dist_1 * np.math.cos(diag_angle - np.pi / 2),
+            #                     diag_point[1] + side_ext_dist_1 * np.math.sin(diag_angle - np.pi / 2),
+            #                     diag_point[2]]
+            # side_ext_dist_2 = HpF.dist_xy([diag_point, side_point_2]) * np.math.sin(side_angle)
+            # side_ext_point_2 = [diag_point[0] + side_ext_dist_2 * np.math.cos(diag_angle + np.pi / 2),
+            #                     diag_point[1] + side_ext_dist_2 * np.math.sin(diag_angle + np.pi / 2),
+            #                     diag_point[2]]
+            # add_point(side_ext_point_1, custom_text='SEP1')
+            # add_point(side_ext_point_2, custom_text='SEP2')
+            # add_point(side_point_1, custom_text='SP1')
+            # add_point(side_point_2, custom_text='SP2')
+            # add_point(diag_point, custom_text='DP')
+            # add_point(pivot_point, custom_text='PP')
+            # add_line([diag_point, side_ext_point_1], width=2, col='green')
+            # add_line([side_point_1, side_ext_point_1], width=2, col='green')
+            # add_line([diag_point, side_ext_point_2], width=2, col='green')
+            # add_line([side_point_2, side_ext_point_2], width=2, col='green')
+            # while num_try < 100:
+            #     z_angle = HpF.get_z_angle([pivot_point, diag_point]) - (1.0 * num_try)
+            #     diag_xy_dist = diag_dist * np.math.cos(z_angle * np.pi / 180)
+            #     diag_nx_point = pivot_point[0] - diag_xy_dist * np.math.cos(diag_angle * np.pi / 180)
+            #     diag_ny_point = pivot_point[1] - diag_xy_dist * np.math.sin(diag_angle * np.pi / 180)
+            #     diag_nz_point = pivot_point[2] + diag_dist * np.math.sin(z_angle * np.pi / 180)
+            #     diag_new_point = [diag_nx_point, diag_ny_point, diag_nz_point]
+            #
+            #     # side_nx_point = pivot_point[0] +  + new_xy_dist * np.math.cos(diag_angle * np.pi / 180)
+            #     # side_ny_point = pivot_point[1] + new_xy_dist * np.math.sin(diag_angle * np.pi / 180)
+            #     # side_nz_point = pivot_point[2] + diag_dist * np.math.sin(z_angle * np.pi / 180)
+            #     # side_new_point = [diag_nx_point, diag_ny_point, diag_nz_point]
+            #     add_point(diag_new_point, size=GLOB.RD_3, col='blue')
+            #     num_try += 1
+            #
+            # ## Got points, calculated data. Now to add the box
+            # # Vehicle center point
+            # veh_cen = [veh_x + (veh_f - veh_b) / 2.0, veh_y, whl_center[min_dis_pi][2]]
+            # # Vehicle wheels rep by a cylinder
+            # whl_objs = [vedo.Cylinder(whl_center[i], r=whl_r, height=whl_h, axis=(0, 1, 0),
+            #                           alpha=0.6).triangulate().c('purple') for i in range(0, 4)]
+            # # Temp lines diagonally for the vehicle rep
+            # ln_objs = [vedo.Line(whl_center[0], whl_center[3], closed=True, c='red', alpha=0.3),
+            #            vedo.Line(whl_center[2], whl_center[1], closed=True, c='red', alpha=0.3)]
+            # # Vehicle body rep by a box
+            # box_obj = vedo.Box(veh_cen, length=(veh_l + veh_f + veh_b), width=veh_w, height=veh_h,
+            #                    alpha=0.4).triangulate().c('pink')
+            # mesh_rad = 1.0
+            # con = []
+            # mesh = []
+            # for i, pt in enumerate(box_bottom):
+            #     close_pt = cloud.closestPoint(pt, radius=mesh_rad)
+            #     if len(close_pt) > 2:
+            #         mesh_i = vedo.delaunay2D(close_pt)
+            #         mesh_i.c('hotpink')
+            #         con_i = mesh_i.intersectWith(box_obj)  # Intersection areas to show
+            #         con.append(con_i)
+            #         mesh.append(mesh_i)
+            #         print(len(con_i.points()))
+            # for i in range(0, 4):
+            #     add_text(f'P_{i}', pos=box_bottom[i], size=1)
+            # print('Cons = ', con)
+            # veh_objs = []
+            # veh_objs.extend(ln_objs)
+            # # veh_objs.extend(whl_objs)
+            # plt.add(veh_objs)
 
             # rot = 4
             # for i in range(-11, 10, 2):
@@ -638,19 +733,19 @@ def get_vehicle_data(gui_q, ):
     fields = {
         0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 10.0, 'min_v': 0.0,
             's_name': '__', 'name': 'Enter the required vehicle parameters'},
-        1: {'data': tkinter.StringVar(), 'default': '4.0', 'max_v': 10.0, 'min_v': 0.1,
+        1: {'data': tkinter.StringVar(), 'default': '3.0', 'max_v': 10.0, 'min_v': 0.1,
             's_name': 'back_overhang', 'name': 'Back Overhang'},
-        2: {'data': tkinter.StringVar(), 'default': '4.0', 'max_v': 10.0, 'min_v': 0.1,
+        2: {'data': tkinter.StringVar(), 'default': '2.5', 'max_v': 10.0, 'min_v': 0.1,
             's_name': 'front_overhang', 'name': 'Front Overhang'},
-        3: {'data': tkinter.StringVar(), 'default': '4.0', 'max_v': 20.0, 'min_v': 0.1,
+        3: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_radius', 'name': 'Wheel Radius'},
-        4: {'data': tkinter.StringVar(), 'default': '0.5', 'max_v': 20.0, 'min_v': 0.1,
+        4: {'data': tkinter.StringVar(), 'default': '0.3', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_width', 'name': 'Wheel Width'},
         5: {'data': tkinter.StringVar(), 'default': '4', 'max_v': 16.0, 'min_v': 1.0,
             's_name': 'num_wheels', 'name': 'Number of wheels'},
-        6: {'data': tkinter.StringVar(), 'default': '20.0', 'max_v': 40.0, 'min_v': 1.0,
+        6: {'data': tkinter.StringVar(), 'default': '11.0', 'max_v': 40.0, 'min_v': 1.0,
             's_name': 'length', 'name': 'Vehicle Length'},
-        7: {'data': tkinter.StringVar(), 'default': '8.0', 'max_v': 20.0, 'min_v': 1.0,
+        7: {'data': tkinter.StringVar(), 'default': '5.0', 'max_v': 20.0, 'min_v': 1.0,
             's_name': 'width', 'name': 'Vehicle Width'}
     }
 
@@ -686,7 +781,7 @@ def get_values(root, field_entries, gui_q):
                 #     setattr(vehicle_data, fe['s_name'], float(dt))
                 # else:
                 #     print('Error: Value is out of bound')
-        pprint(vehicle_data.__dict__)
+        # pprint(vehicle_data.__dict__)
         gui_q.put(vehicle_data)
         root.destroy()
     except Exception as e:
@@ -1018,7 +1113,6 @@ def rem_all_trackers():
 
 def move_camera(point):
     global g_plot, plt
-
     # if elevation == 0:
     #     elevation = g_plot.cam_center[2]
     # new_cam_pos = [point[0], point[1], elevation]
@@ -1048,11 +1142,11 @@ def get_file_names(required_files):
         'LAS': {'ext': ('.las', '.LAS'), 'title': 'LAS File', 'desc': 'LAS point file', 'default': '3_1.las'},
         'TFW': {'ext': ('.tfw', '.TFW'), 'title': 'TFW GIS File', 'desc': 'World coordinate file', 'default': '3_1.tfw'}
     }
-    print('Required files are: ', required_files)
 
     if len(sys.argv) < 1 + len(required_files):
         titles = ['[' + file_types[file_type]['title'] + ']' for file_type in required_files]
-        print('Default Usage:: \t', os.path.basename(__file__), ', '.join(titles))
+        if not use_defaults:
+            print('Default Usage:  ', os.path.basename(__file__), ', '.join(titles))
         for i, file_type in enumerate(required_files):
             if use_defaults:
                 file_name = file_types[file_type]['default']
@@ -1329,6 +1423,7 @@ all_tasks = {
 
 
 def main():
+    print(vedo.printInfo(vedo))
     inp_q = multiprocessing.Queue()
     out_q = multiprocessing.Queue()
 
