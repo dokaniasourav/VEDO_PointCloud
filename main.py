@@ -14,8 +14,9 @@ import tkinter.filedialog
 import tkinter.simpledialog
 from datetime import datetime
 
-import GLOB
+import Global as Glb
 import Helper as HpF
+import Interface as Intf
 
 # from tkinter import filedialog
 
@@ -55,7 +56,7 @@ def on_key_press(event):
         update_text('text4', 'Cleared everything on the plot')
         update_text('text5', 'Press R to enter rectangle mode')
         update_text('text6', 'Press Z to enter slope mode')
-        g_plot.plotter_mode = GLOB.IDEAL_PLT_MODE
+        g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
     elif event.keyPressed == 'Escape':
         plt.clear()
         exit()
@@ -63,19 +64,19 @@ def on_key_press(event):
         reset_plot()
     elif event.keyPressed == 't':
         my_camera_reset()
-    elif g_plot.plotter_mode == GLOB.IDEAL_PLT_MODE:
+    elif g_plot.plotter_mode == Glb.IDEAL_PLT_MODE:
         if event.keyPressed in ['z', 'Z']:
             print("=== ENTER SLOPE AVG MODE ====")
             update_text('text5', 'Slope averaging is ON')
-            g_plot.plotter_mode = GLOB.SLOPE_AVG_MODE
+            g_plot.plotter_mode = Glb.SLOPE_AVG_MODE
         elif event.keyPressed in ['R', 'r']:
             print("=== ENTER RECTANGLE MODE ====")
             update_text('text5', 'Rectangle mode is ON')
-            g_plot.plotter_mode = GLOB.RECTANGLE_MODE
+            g_plot.plotter_mode = Glb.RECTANGLE_MODE
         elif event.keyPressed in ['V', 'v']:
             print("=== ENTER VEHICLE MODE ====")
             update_text('text5', 'Vehicle mode is ON')
-            g_plot.plotter_mode = GLOB.VEHICLE_RUNNER
+            g_plot.plotter_mode = Glb.VEHICLE_RUNNER
 
     # elif event.keyPressed in [str(e) for e in range(0, 9)]:
     #     handle_inp()
@@ -84,14 +85,14 @@ def on_key_press(event):
 def enter_callback(event):
     global g_plot
     if not g_plot.initialized:
-        update_text('text1', '', [2, -2 * GLOB.TEXT_SPACING, 5])
-        update_text('text2', 'SlopeAVG and Tracking: OFF', [2, -3 * GLOB.TEXT_SPACING, 5])
-        update_text('text3', '', [2, -4 * GLOB.TEXT_SPACING, 5])
+        update_text('text1', '', [2, -2 * Glb.TEXT_SPACING, 5])
+        update_text('text2', 'SlopeAVG and Tracking: OFF', [2, -3 * Glb.TEXT_SPACING, 5])
+        update_text('text3', '', [2, -4 * Glb.TEXT_SPACING, 5])
         update_text('text4', 'Press Z to enter slope mode',
-                    [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 3 * GLOB.TEXT_SPACING, 5])
+                    [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 3 * Glb.TEXT_SPACING, 5])
         update_text('text5', 'Press R to enter slope mode',
-                    [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 2 * GLOB.TEXT_SPACING, 5])
-        update_text('text6', '', [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 1 * GLOB.TEXT_SPACING, 5])
+                    [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 2 * Glb.TEXT_SPACING, 5])
+        update_text('text6', '', [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 1 * Glb.TEXT_SPACING, 5])
         # all_tasks['timer_id'] = plt.timerCallback('create', dt=10)
         g_plot.initialized = True
     if g_plot.timerID is not None:
@@ -118,7 +119,7 @@ def handle_timer(event):
         if ind < len(task_data):
             if task_type == 'add_point':
                 metadata['pos'] = task_data[ind]
-                # add_point(task_data[ind], size=GLOB.RD_3, col='g', silent=True)
+                # add_point(task_data[ind], size=Glb.RD_3, col='g', silent=True)
                 add_point(**metadata)
                 all_tasks[task_name]['index'] += 1
             elif task_type == 'add_line':
@@ -188,29 +189,29 @@ def on_left_click(event):
     if event.picked3d is None:
         return
 
-    if g_plot.plotter_mode != GLOB.IDEAL_PLT_MODE:
+    if g_plot.plotter_mode != Glb.IDEAL_PLT_MODE:
         cpt2 = vedo.vector(list(event.picked3d))
         cpt = find_closest_point(cpt2)
         if cpt is None:
             return
-        if g_plot.plotter_mode == GLOB.SLOPE_AVG_MODE:
-            add_point(cpt, size=GLOB.RD_2, col='red')
+        if g_plot.plotter_mode == Glb.SLOPE_AVG_MODE:
+            add_point(cpt, size=Glb.RD_2, col='red')
             g_plot.current_points.append(cpt)
-        elif g_plot.plotter_mode == GLOB.RECTANGLE_MODE:
-            add_point(cpt, size=GLOB.RD_3, col='yellow')
+        elif g_plot.plotter_mode == Glb.RECTANGLE_MODE:
+            add_point(cpt, size=Glb.RD_3, col='yellow')
             g_plot.current_points.append(cpt)
-        elif g_plot.plotter_mode == GLOB.VEHICLE_RUNNER:
+        elif g_plot.plotter_mode == Glb.VEHICLE_RUNNER:
             ## Getting the attributes of the vehicle using a separate function
             print('Click to add a starting position for Vehicle')
-            new_window = multiprocessing.Process(target=get_vehicle_data, args=(g_plot.out_q,))
+            new_window = multiprocessing.Process(target=Intf.get_vehicle_data, args=(g_plot.out_q,))
             new_window.start()
             new_window.join()
             if not g_plot.out_q.empty():
                 g_plot.vehicle_data = g_plot.out_q.get()
 
             ## Temporary point for representation of the clicked point
-            add_point(cpt, size=GLOB.RD_3, col='hotpink')
-            g_plot.plotter_mode = GLOB.IDEAL_PLT_MODE
+            add_point(cpt, size=Glb.RD_3, col='hotpink')
+            g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
             g_plot.vehicle_data.height = g_plot.vehicle_data.wheel_radius / 2
             g_plot.vehicle_data.position = [cpt[0], cpt[1], (cpt[2] + g_plot.vehicle_data.wheel_radius)]
 
@@ -228,15 +229,15 @@ def on_left_click(event):
 
             ## Ignoring the wheel width effect for now
             whl_bottoms = [[veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # left, bottom
-                          [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # right, bottom
-                          [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r],  # left, top
-                          [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r]]  # right, top
+                           [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # right, bottom
+                           [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r],  # left, top
+                           [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r]]  # right, top
 
             ## Ignoring the wheel width effect for now
             whl_centers = [[veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z],  # left, bottom
-                          [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z],  # right, bottom
-                          [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z],  # left, top
-                          [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z]]  # right, top
+                           [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z],  # right, bottom
+                           [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z],  # left, top
+                           [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z]]  # right, top
 
             whl_points = []
             connections = []
@@ -252,30 +253,32 @@ def on_left_click(event):
 
             num_pts = 60
             for wi, whl_center in enumerate(whl_centers):
-                side_angle = 0 # np.pi / 4
-                add_point(whl_center, custom_text=f'{wi}_wheel', size=GLOB.RD_3, col='hotpink')
+                side_angle = 0  # np.pi / 4
+                add_point(whl_center, custom_text=f'{wi}_wheel', size=Glb.RD_3, col='hotpink')
                 whl_y_off = [-whl_h, -whl_h, whl_h, whl_h]
                 for i in range(0, num_pts):
-                    ang = 360/num_pts * i * np.pi / 180
+                    ang = 360 / num_pts * i * np.pi / 180
                     whl_rim_point_1 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
                                        whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle),
                                        whl_center[2] + whl_r * np.math.sin(ang)]
                     whl_rim_point_2 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
-                                       whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) + whl_y_off[wi],
+                                       whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) + whl_y_off[
+                                           wi],
                                        whl_center[2] + whl_r * np.math.sin(ang)]
                     whl_points.append(whl_rim_point_1)
                     whl_points.append(whl_rim_point_2)
-                    connections.append([(i*2+0) % (num_pts*2) + wi*num_pts*2,
-                                        (i*2+1) % (num_pts*2) + wi*num_pts*2,
-                                        (i*2+2) % (num_pts*2) + wi*num_pts*2])
-                    connections.append([(i*2+1) % (num_pts*2) + wi*num_pts*2,
-                                        (i*2+2) % (num_pts*2) + wi*num_pts*2,
-                                        (i*2+3) % (num_pts*2) + wi*num_pts*2])
+                    connections.append([(i * 2 + 0) % (num_pts * 2) + wi * num_pts * 2,
+                                        (i * 2 + 1) % (num_pts * 2) + wi * num_pts * 2,
+                                        (i * 2 + 2) % (num_pts * 2) + wi * num_pts * 2])
+                    connections.append([(i * 2 + 1) % (num_pts * 2) + wi * num_pts * 2,
+                                        (i * 2 + 2) % (num_pts * 2) + wi * num_pts * 2,
+                                        (i * 2 + 3) % (num_pts * 2) + wi * num_pts * 2])
                     # plt.add(vedo.Cylinder(whl_center, r=whl_r, height=whl_h, axis=(0, 1, 0)))
 
             whl_points.extend(box_coord)
-            offset = 4*num_pts*2
-            ## Extend box coordinates to make the box mesh
+            offset = 4 * num_pts * 2
+
+            ''' Extend box coordinates to make the box mesh '''
             connections.extend([
                 [offset + 0, offset + 1, offset + 2],
                 [offset + 1, offset + 2, offset + 3],
@@ -296,37 +299,93 @@ def on_left_click(event):
                 [offset + 3, offset + 5, offset + 7]
             ])
 
-            ## Wheel mesh object along with vehicle object
+            ''' Wheel mesh object along with vehicle object '''
             wheel_mesh = vedo.Mesh([whl_points, connections])
             wheel_mesh.backColor('orange4').color('orange').lineColor('black').lineWidth(1)
             plt.add(wheel_mesh)
             # mesh_rad = np.math.sqrt((veh_l+veh_f+veh_b)**2 + veh_w**2 + whl_r**2) / 2.0
 
-            close_points = []
-            for i, whl_bottom in enumerate(whl_bottoms):
-                close_points.append(cloud.closestPoint(whl_bottom, radius=3))
+            ''' Wheel bottom rectangle mesh '''
+            wheel_bottom_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]])
+            wheel_bottom_mesh.lineColor('yellow')
+            plt.add(wheel_bottom_mesh)
 
-            on_ground = 0b0000
-            move_down_by = 0.01
+            wheel_mesh.rotate(15, [0, 0, 1], whl_bottoms[0])
+            wheel_bottom_mesh.rotate(15, [0, 0, 1], whl_bottoms[0])
+            whl_bottoms = wheel_bottom_mesh.points()
+
+            # print(wheel_bottom_mesh.points())
+            # print(wheel_bottom_mesh.pos())
+            # print(whl_bottoms)
+
+            close_meshes = []
+            for i, whl_bottom in enumerate(whl_bottoms):
+                close_point = cloud.closestPoint(whl_bottom, radius=3)
+                mesh_i = vedo.delaunay2D(close_point).c('pink')
+                close_meshes.append(mesh_i)
+
+            ''' Find the intersection with single wheel first '''
+            on_ground = []
+            move_down_by = 0.4096
+            accuracy_req = 0.0002
+            new_whl_mesh_pos = wheel_mesh.pos()
+            new_whl_bottom_pos = wheel_bottom_mesh.pos()
             while True:
-                last_pos = wheel_mesh.pos()
-                wheel_mesh.pos([last_pos[0], last_pos[1], last_pos[2] - move_down_by])
+                new_whl_mesh_pos[2] -= move_down_by
+                new_whl_bottom_pos[2] -= move_down_by
+                wheel_mesh.pos(new_whl_mesh_pos)
+                wheel_bottom_mesh.pos(new_whl_bottom_pos)
+                plt.render()
+
                 print('Moving down by ', move_down_by)
-                for wi, close_point in enumerate(close_points):
-                    mesh_i = vedo.delaunay2D(close_point).c('pink')
-                    con_i = mesh_i.intersectWith(wheel_mesh)  # Intersection areas to show
-                    # con_i.c('blue')
+                for wi, close_mesh in enumerate(close_meshes):
+                    # Intersection areas to show
+                    con_i = close_mesh.intersectWith(wheel_mesh)
+                    con_i.c('blue')
                     int_points = con_i.points()
                     if len(int_points) > 0:
                         print('Found ', len(int_points), ' intersection points for wheel ', wi)
-                        on_ground |= (1 << wi)
+                        on_ground.append(wi)
                         break
-                if on_ground > 0:
-                    break
-                # if on_ground in [0b1111, 0b1110, 0b1101, 0b1011, 0b0111]:
-                #     print('On ground is ', on_ground)
-                #     break
+                if len(on_ground) > 0:
+                    if move_down_by <= accuracy_req:
+                        break
+                    else:
+                        new_whl_mesh_pos[2] += move_down_by
+                        new_whl_bottom_pos[2] += move_down_by
+                        wheel_mesh.pos(new_whl_mesh_pos)
+                        wheel_bottom_mesh.pos(new_whl_bottom_pos)
+                        move_down_by = move_down_by / 2.0
+                        on_ground = []
 
+            whl_bottoms = wheel_bottom_mesh.points()
+
+            ''' Now rotate around that wheel '''
+            rot_index = [[0, 3], [1, 2], [2, 1], [3, 0]]
+            wheel_num = on_ground[0]
+            rot_axis = HpF.sub_point(whl_bottoms[rot_index[wheel_num][1]],
+                                     whl_bottoms[rot_index[wheel_num][0]])
+            per_axis = [1, 0 - (rot_axis[0] / rot_axis[1]), 0]
+            rot_angle = -0.1
+            while True:
+                whl_bottoms = wheel_bottom_mesh.points()
+                wheel_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
+                wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
+                plt.render()
+                print('Rotate by 0.1 degree')
+                for wi, close_mesh in enumerate(close_meshes):
+                    if wi == wheel_num:
+                        continue
+                    con_i = close_mesh.intersectWith(wheel_mesh)
+                    con_i.c('blue')
+                    int_points = con_i.points()
+                    if len(int_points) > 0:
+                        print('Found ', len(int_points), ' intersection points for wheel ', wi)
+                        on_ground.append(wi)
+                        break
+                if len(on_ground) > 1:
+                    print(on_ground)
+                    break
             # for i, pt in enumerate(whl_bottoms):
             #     close_pt = cloud.closestPoint(pt, radius=mesh_rad)
             #     if len(close_pt) > 2:
@@ -409,7 +468,7 @@ def on_left_click(event):
             #     # side_ny_point = pivot_point[1] + new_xy_dist * np.math.sin(diag_angle * np.pi / 180)
             #     # side_nz_point = pivot_point[2] + diag_dist * np.math.sin(z_angle * np.pi / 180)
             #     # side_new_point = [diag_nx_point, diag_ny_point, diag_nz_point]
-            #     add_point(diag_new_point, size=GLOB.RD_3, col='blue')
+            #     add_point(diag_new_point, size=Glb.RD_3, col='blue')
             #     num_try += 1
             #
             # ## Got points, calculated data. Now to add the box
@@ -462,9 +521,9 @@ def on_left_click(event):
         if len(g_plot.current_points) == 1:
             if not g_plot.tracking_mode:
                 print("Tracking is ON now ... ")
-                if g_plot.plotter_mode == GLOB.SLOPE_AVG_MODE:
+                if g_plot.plotter_mode == Glb.SLOPE_AVG_MODE:
                     update_text('text2', 'SlopeAVG and Tracking: ON', )
-                elif g_plot.plotter_mode == GLOB.RECTANGLE_MODE:
+                elif g_plot.plotter_mode == Glb.RECTANGLE_MODE:
                     update_text('text2', 'RectMode and Tracking: ON', )
                 else:
                     update_text('text2', 'Vehicle mode and Tracking: ON', )
@@ -472,16 +531,16 @@ def on_left_click(event):
                 g_plot.tracking_mode = True
 
         elif len(g_plot.current_points) == 2:
-            if g_plot.plotter_mode == GLOB.SLOPE_AVG_MODE:
+            if g_plot.plotter_mode == Glb.SLOPE_AVG_MODE:
                 g_plot.tracking_mode = False
-                g_plot.plotter_mode = GLOB.IDEAL_PLT_MODE
+                g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
                 update_text('text2', 'SlopeAVG: ON, Tracking: OFF')
                 update_text('text3', '')
                 rem_all_trackers()
-                move_camera(two_point_op(g_plot.current_points, op='AVG'))
+                move_camera(HpF.avg_point(g_plot.current_points))
                 add_line(g_plot.current_points, width=2, col='white')
                 max_points = int(round(HpF.dist_xyz([g_plot.current_points[0],
-                                                     g_plot.current_points[1]]) / GLOB.SCALE_FACTOR))
+                                                     g_plot.current_points[1]]) / Glb.SCALE_FACTOR))
                 update_text('text5', f'Max points = {max_points}')
                 num_points = int(tkinter.simpledialog.askinteger("Input Dialog",
                                                                  f"\n\tNumber of points on map,"
@@ -492,9 +551,9 @@ def on_left_click(event):
                 update_text('text4', f'{round(num_points)} points selected')
                 get_avg_slope(num_points)
                 g_plot.current_points = []
-            elif g_plot.plotter_mode == GLOB.RECTANGLE_MODE:
+            elif g_plot.plotter_mode == Glb.RECTANGLE_MODE:
                 update_text('text4', 'Make the desired rectangle')
-            # elif g_plot.plotter_mode == GLOB.VEHICLE_RUNNER:
+            # elif g_plot.plotter_mode == Glb.VEHICLE_RUNNER:
             #     update_text('text4', 'Make the desired vehicle')
         elif len(g_plot.current_points) == 3:
             rect_points = HpF.get_rectangle(g_plot.current_points)
@@ -503,20 +562,20 @@ def on_left_click(event):
             plt.remove(g_plot.plotted_points.pop())
             plt.remove(g_plot.plotted_points.pop())
             for vertex in range(0, 4):
-                add_point(rect_points[vertex], size=GLOB.RD_4, col='Green')
+                add_point(rect_points[vertex], size=Glb.RD_4, col='Green')
                 add_text(f'P_{vertex}', pos=rect_points[vertex])
                 add_line([rect_points[vertex], rect_points[vertex - 1]], width=3, col='lightblue')
             move_camera((rect_points[0] + rect_points[1] +
                          rect_points[2] + rect_points[3]) / 4)
-            # if g_plot.plotter_mode == GLOB.VEHICLE_RUNNER:
+            # if g_plot.plotter_mode == Glb.VEHICLE_RUNNER:
             #     g_plot.vehicle_data['coord'] = rect_points
             #     g_plot.vehicle_data['VL'] = dist_xyz(rect_points[1], rect_points[2])
             #     g_plot.vehicle_data['VW'] = dist_xyz(rect_points[0], rect_points[1])
             #     get_vehicle_data()
-            # elif g_plot.plotter_mode == GLOB.RECTANGLE_MODE:
+            # elif g_plot.plotter_mode == Glb.RECTANGLE_MODE:
             g_plot.rect_points = rect_points
             update_text('text4', 'Add the first point to draw a line')
-        elif g_plot.plotter_mode == GLOB.RECTANGLE_MODE and len(g_plot.current_points) >= 4:
+        elif g_plot.plotter_mode == Glb.RECTANGLE_MODE and len(g_plot.current_points) >= 4:
             d_sign = 0
             if len(g_plot.current_points) == 4:
                 x_p, y_p = g_plot.current_points[3][0], g_plot.current_points[3][1]
@@ -554,7 +613,7 @@ def on_left_click(event):
                     # print('Angles perpendicular = ', perpendicular_angle,
                     #       ', horizontal = ', horizontal_angle)
                     g_plot.tracking_mode = False
-                    g_plot.plotter_mode = GLOB.IDEAL_PLT_MODE
+                    g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
 
                     num_points = int(tkinter.simpledialog.askinteger("Input a number",
                                                                      "Number of points on line",
@@ -575,7 +634,7 @@ def on_left_click(event):
                     act_center_points.append(np.array(g_plot.current_points[4]))
 
                     for p, act_center_point in enumerate(act_center_points):
-                        add_point(act_center_point, size=GLOB.RD_4, col='Blue')
+                        add_point(act_center_point, size=Glb.RD_4, col='Blue')
                         point_star_structure = [{'angle': perpendicular_angle + i} for i in range(-90, 94, 4)]
                         critical_angle1 = HpF.get_xy_angle([act_center_point, g_plot.rect_points[2]])
                         critical_angle2 = HpF.get_xy_angle([act_center_point, g_plot.rect_points[3]])
@@ -626,7 +685,7 @@ def on_left_click(event):
                                 point_star_structure[i]['slope'] = HpF.get_slope(act_circle_point, act_center_point)
                                 point_star_structure[i]['valid'] = True
                                 point_star_structure[i]['Distance'] = HpF.dist_xyz([act_circle_point, act_center_point])
-                                # add_point(act_circle_point, size=GLOB.RD_4, col='White')
+                                # add_point(act_circle_point, size=Glb.RD_4, col='White')
                                 # add_line([act_circle_point, act_center_point], width=3, col='White')
 
                         max_slope_index = 0
@@ -678,7 +737,7 @@ def on_left_click(event):
                         add_timer_task(f'Star_Point_Plotter_{p}', task_type='add_line',
                                        task_data=lines_to_plot, meta={'width': 1, 'col': 'orange', 'elevation': 2})
 
-                        add_point(point_star_structure[max_slope_index]['point'], size=GLOB.RD_3, col='White')
+                        add_point(point_star_structure[max_slope_index]['point'], size=Glb.RD_3, col='White')
                         add_line([point_star_structure[max_slope_index]['point'], act_center_point], width=4,
                                  col='White', elevation=2)
                     log_to_csv(point_star_logging, 'Star_slopes')
@@ -688,7 +747,7 @@ def on_left_click(event):
 def mouse_track(event):
     global g_plot
 
-    if g_plot.tracking_mode == GLOB.IDEAL_PLT_MODE:
+    if g_plot.tracking_mode == Glb.IDEAL_PLT_MODE:
         return
 
     # Track the mouse if a point has already been selected
@@ -712,7 +771,7 @@ def mouse_track(event):
     if len(g_plot.current_points) == 1 or len(g_plot.current_points) == 4:
         if len(g_plot.plotted_trackers) > 0:
             plt.remove(g_plot.plotted_trackers.pop())
-        add_ruler([g_plot.current_points[-1], mouse_point], width=3, col='yellow', size=GLOB.TEXT_SIZE)
+        add_ruler([g_plot.current_points[-1], mouse_point], width=3, col='yellow', size=Glb.TEXT_SIZE)
         update_text('text3', f'Dist: {HpF.dist_xyz([g_plot.current_points[-1], mouse_point]):.3f}')
         return
 
@@ -720,78 +779,14 @@ def mouse_track(event):
         rem_all_trackers()
         rect_points = HpF.get_rectangle([g_plot.current_points[0], g_plot.current_points[1], mouse_point])
         for i in range(0, 4):
-            add_ruler([rect_points[i], rect_points[i - 1]], width=3, col='white', size=GLOB.TEXT_SIZE)
+            add_ruler([rect_points[i], rect_points[i - 1]], width=3, col='white', size=Glb.TEXT_SIZE)
         return
-
-
-def get_vehicle_data(gui_q, ):
-    root = tkinter.Tk()
-    root.title('Vehicle Attribute Selection')
-    root.columnconfigure(0, weight=1)
-    root.columnconfigure(1, weight=4)
-
-    fields = {
-        0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 10.0, 'min_v': 0.0,
-            's_name': '__', 'name': 'Enter the required vehicle parameters'},
-        1: {'data': tkinter.StringVar(), 'default': '3.0', 'max_v': 10.0, 'min_v': 0.1,
-            's_name': 'back_overhang', 'name': 'Back Overhang'},
-        2: {'data': tkinter.StringVar(), 'default': '2.5', 'max_v': 10.0, 'min_v': 0.1,
-            's_name': 'front_overhang', 'name': 'Front Overhang'},
-        3: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 20.0, 'min_v': 0.1,
-            's_name': 'wheel_radius', 'name': 'Wheel Radius'},
-        4: {'data': tkinter.StringVar(), 'default': '0.3', 'max_v': 20.0, 'min_v': 0.1,
-            's_name': 'wheel_width', 'name': 'Wheel Width'},
-        5: {'data': tkinter.StringVar(), 'default': '4', 'max_v': 16.0, 'min_v': 1.0,
-            's_name': 'num_wheels', 'name': 'Number of wheels'},
-        6: {'data': tkinter.StringVar(), 'default': '11.0', 'max_v': 40.0, 'min_v': 1.0,
-            's_name': 'length', 'name': 'Vehicle Length'},
-        7: {'data': tkinter.StringVar(), 'default': '5.0', 'max_v': 20.0, 'min_v': 1.0,
-            's_name': 'width', 'name': 'Vehicle Width'}
-    }
-
-    print('Enter vehicle attributes in dialog box')
-    for i in range(0, 8):
-        tkinter.Label(root, text=fields[i]['name'], borderwidth=2, font=10).grid(
-            column=0, row=i, sticky=tkinter.W, padx=5, pady=5)
-        if i == 0:
-            continue
-        else:
-            fields[i]['data'].set(fields[i]['default'])
-            ent = tkinter.Entry(root, textvariable=fields[i]['data'])
-            ent.grid(column=1, row=i, sticky=tkinter.E, padx=5, pady=5)
-
-    tkinter.Button(root, text='Confirm', command=lambda: get_values(root, fields, gui_q)
-                   ).grid(column=1, row=len(fields), sticky=tkinter.E, padx=5, pady=5)
-    root.mainloop()
-    exit()
-
-
-def get_values(root, field_entries, gui_q):
-    global g_plot
-    vehicle_data = VehicleData()
-    try:
-        for field_entry in field_entries:
-            fe = field_entries[field_entry]
-            dt = fe['data'].get()
-            if field_entry == 0:
-                continue
-            else:
-                setattr(vehicle_data, fe['s_name'], float(dt))
-                # if fe['min_v'] <= float(dt) <= fe['max_v']:
-                #     setattr(vehicle_data, fe['s_name'], float(dt))
-                # else:
-                #     print('Error: Value is out of bound')
-        # pprint(vehicle_data.__dict__)
-        gui_q.put(vehicle_data)
-        root.destroy()
-    except Exception as e:
-        print(e)
 
 
 # The get_line_of_points takes the two endpoints, then does its best to get the pt along the path of the line
 # that are on the ground of the point cloud Does this by iterating through the pt that make up the line in
 # space, then getting the closest point that is actually a part of the mesh to that point
-def add_point(pos, size=GLOB.RD_2, col='red', silent=True, is_text=False, custom_text=''):
+def add_point(pos, size=Glb.RD_2, col='red', silent=True, is_text=False, custom_text=''):
     global g_plot
     new_point = vedo.Point(pos, r=size, c=col)  # Point to be added, default radius and default color
     plt.add(new_point)
@@ -868,7 +863,7 @@ def add_ruler(points, col='white', width=4, size=2):
         print('Invalid number of pt')
 
 
-def update_text(text_id, value, rel_pos=None, size=GLOB.TEXT_SIZE):
+def update_text(text_id, value, rel_pos=None, size=Glb.TEXT_SIZE):
     global text_objects
     if rel_pos is None:
         rel_pos = [5, 5, 5]
@@ -922,7 +917,7 @@ def get_avg_slope(num_points):
         acceptable_dist = 0.2
         for i in range(0, num_points):
             new_approx_point = [cur_point[0] + x_unit, cur_point[1] + y_unit, cur_point[2] + z_offset]
-            # add_point(new_approx_point, size=GLOB.RD_4, col='white', silent=True)
+            # add_point(new_approx_point, size=Glb.RD_4, col='white', silent=True)
             new_actual_point = cloud.closestPoint(new_approx_point)
             xy_dist_temp = HpF.dist_xy([new_approx_point, new_actual_point])
             if xy_dist_temp < acceptable_dist:
@@ -951,7 +946,7 @@ def get_avg_slope(num_points):
     print(f'Rendering {len(points_to_use)} on map ', end='')
     # st = '.'
     # for p in points_to_use:
-    #     add_point(p, size=GLOB.RD_3, col='g', silent=True)
+    #     add_point(p, size=Glb.RD_3, col='g', silent=True)
     #     update_text('text6', st)
     #     st += '.'
     #     print('.', end='')
@@ -962,7 +957,7 @@ def get_avg_slope(num_points):
         lines_to_use.append([points_to_use[i], points_to_use[i + 1]])
 
     add_timer_task(f'Add {len(points_to_use)} on map', task_type='add_point',
-                   task_data=points_to_use, meta={'col': 'green', 'size': GLOB.RD_3})
+                   task_data=points_to_use, meta={'col': 'green', 'size': Glb.RD_3})
     add_timer_task(f'Adding {len(lines_to_use)} on map', task_type='add_line',
                    task_data=lines_to_use, meta={'col': 'yellow', 'elevation': 2})
     # point1 = ', '.join(['%.3f' % e for e in points_to_use[0]])
@@ -1183,25 +1178,6 @@ def toggle_state(queue_obj: multiprocessing.Queue, value):
     print(queue_obj.qsize())
 
 
-def gui_main(inp_q: multiprocessing.Queue, out_q: multiprocessing.Queue):
-    root = tkinter.Tk()
-    root.geometry('400x300')
-    root.title('Main menu')
-
-    label = tkinter.Label(root, text="Enter a value ", borderwidth=2, font=10)
-
-    text = tkinter.StringVar()
-    entry = tkinter.Entry(root, textvariable=text)
-    # e.bind('<Key>', key_press)
-
-    button_1 = tkinter.Button(root, text="Enter Slope AVG Mode", command=lambda: toggle_state(out_q, entry.get()))
-
-    label.pack()
-    entry.pack()
-    button_1.pack()
-    root.mainloop()
-
-
 vedo.settings.enableDefaultKeyboardCallbacks = False
 plt = vedo.Plotter(pos=[0, 0], size=[600, 1080])
 temp_file = open('temp_file', mode='w+')
@@ -1338,7 +1314,7 @@ def find_closest_point(point, num_retry=60, dist_threshold=1.0, aggressive=2.0):
             return close_point
 
     fact = 1.0
-    for rt in range(num_retry, num_retry*2):
+    for rt in range(num_retry, num_retry * 2):
         # rand_point = [(xyz + (random.random() - 0.5)*fact) for xyz in point]
         rand_point = [point[0], point[1], point[2] - (random.random() - 0.75) * fact]
         close_point = cloud.closestPoint(rand_point)
@@ -1355,22 +1331,8 @@ def find_closest_point(point, num_retry=60, dist_threshold=1.0, aggressive=2.0):
     return closest_pt_yet
 
 
-class VehicleData:
-    width: float
-    length: float
-    height: float
-    position: []
-    num_wheels: int
-    wheel_width: float
-    wheel_radius: float
-    back_overhang: float
-    front_overhang: float
-    path_points = []
-    path_lines = []
-
-
 class LocalPlotter:
-    plotter_mode = GLOB.VEHICLE_RUNNER
+    plotter_mode = Glb.VEHICLE_RUNNER
     # slope_avg_mode = False
     # rectangle_mode = False
     # vehicle_mode = False
@@ -1396,7 +1358,7 @@ class LocalPlotter:
     rect_points = []
     show_ele_list = []
     vehicle = vedo.Box()
-    vehicle_data = VehicleData()
+    vehicle_data = Intf.VehicleData()
 
 
 ''' All the global variables declared '''

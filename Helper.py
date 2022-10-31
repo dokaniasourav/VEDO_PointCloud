@@ -7,8 +7,8 @@ def dist_xyz(points):
         return None
 
     return np.math.sqrt((points[0][0] - points[1][0]) ** 2 +
-                     (points[0][1] - points[1][1]) ** 2 +
-                     (points[0][2] - points[1][2]) ** 2)
+                        (points[0][1] - points[1][1]) ** 2 +
+                        (points[0][2] - points[1][2]) ** 2)
 
 
 def dist_xy(points):
@@ -17,7 +17,7 @@ def dist_xy(points):
         return None
 
     return np.math.sqrt((points[0][0] - points[1][0]) ** 2 +
-                     (points[0][1] - points[1][1]) ** 2)
+                        (points[0][1] - points[1][1]) ** 2)
 
 
 def get_xy_angle(points, no_change=False):
@@ -97,3 +97,19 @@ def get_rectangle(points):
     points[1][2] = points[0][2] = new_point_1[2] = new_point_2[2] = max_z
 
     return [points[1], points[0], new_point_1, new_point_2]
+
+
+def sub_point(point1, point2):
+    return [point1[0] - point2[0], point1[1] - point2[1], point1[2] - point2[2]]
+
+
+def add_point(points):
+    return [(points[1][0] + points[0][0]),
+            (points[1][1] + points[0][1]),
+            (points[1][2] + points[0][2])]
+
+
+def avg_point(points):
+    return [(points[1][0] + points[0][0]) / 2.0,
+            (points[1][1] + points[0][1]) / 2.0,
+            (points[1][2] + points[0][2]) / 2.0]
