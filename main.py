@@ -323,6 +323,7 @@ def on_left_click(event):
                 close_point = cloud.closestPoint(whl_bottom, radius=3)
                 mesh_i = vedo.delaunay2D(close_point).c('pink')
                 close_meshes.append(mesh_i)
+                plt.add(mesh_i)
 
             ''' Find the intersection with single wheel first '''
             on_ground = []
@@ -360,19 +361,20 @@ def on_left_click(event):
 
             whl_bottoms = wheel_bottom_mesh.points()
 
-            ''' Now rotate around that wheel '''
+            ''' Now rotate around that first touching wheel '''
             rot_index = [[0, 3], [1, 2], [2, 1], [3, 0]]
             wheel_num = on_ground[0]
             rot_axis = HpF.sub_point(whl_bottoms[rot_index[wheel_num][1]],
                                      whl_bottoms[rot_index[wheel_num][0]])
             per_axis = [1, 0 - (rot_axis[0] / rot_axis[1]), 0]
             rot_angle = -0.1
+            print('Rotate by: ', end='')
             while True:
                 whl_bottoms = wheel_bottom_mesh.points()
                 wheel_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
                 wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
                 plt.render()
-                print('Rotate by 0.1 degree')
+                print(rot_angle, ', ', end='')
                 for wi, close_mesh in enumerate(close_meshes):
                     if wi == wheel_num:
                         continue
@@ -380,10 +382,35 @@ def on_left_click(event):
                     con_i.c('blue')
                     int_points = con_i.points()
                     if len(int_points) > 0:
-                        print('Found ', len(int_points), ' intersection points for wheel ', wi)
+                        print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
                         on_ground.append(wi)
                         break
                 if len(on_ground) > 1:
+                    print(on_ground)
+                    break
+
+            ''' And finally around two wheels '''
+            rot_axis = HpF.sub_point(whl_bottoms[on_ground[0]],
+                                     whl_bottoms[on_ground[1]])
+            rot_angle = -0.1
+            print('\nRotate by: ', end='')
+            while True:
+                whl_bottoms = wheel_bottom_mesh.points()
+                wheel_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
+                wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
+                plt.render()
+                print(rot_angle, ', ', end='')
+                for wi, close_mesh in enumerate(close_meshes):
+                    if wi in on_ground:
+                        continue
+                    con_i = close_mesh.intersectWith(wheel_mesh)
+                    con_i.c('blue')
+                    int_points = con_i.points()
+                    if len(int_points) > 0:
+                        print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
+                        on_ground.append(wi)
+                        break
+                if len(on_ground) > 2:
                     print(on_ground)
                     break
             # for i, pt in enumerate(whl_bottoms):
