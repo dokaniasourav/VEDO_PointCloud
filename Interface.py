@@ -1,5 +1,10 @@
 import multiprocessing
 import tkinter
+import time
+import sys
+import os
+
+import tkinter.filedialog
 
 
 class VehicleData:
@@ -78,6 +83,58 @@ def get_values(root, field_entries, gui_q):
         root.destroy()
     except Exception as e:
         print(e)
+
+
+def get_file_names(required_files):
+    file_names = {}
+    if required_files is None or len(required_files) == 0:
+        return file_names
+
+    use_defaults = True
+    root = tkinter.Tk()
+    root.withdraw()
+    file_types = {
+        'PLY': {'ext': ('.ply', '.PLY'), 'title': 'PLY File', 'desc': 'Point-cloud file', 'default': 't3.ply'},
+        'TIF': {'ext': ('.tif', '.tiff'), 'title': 'TIF File', 'desc': 'Tagged Image File', 'default': '3_1.tif'},
+        'PNG': {'ext': ('.png', '.jpg', '.jpeg'), 'title': 'Image File', 'desc': 'Image Files', 'default': '3_1.png'},
+        'LAS': {'ext': ('.las', '.LAS'), 'title': 'LAS File', 'desc': 'LAS point file', 'default': '3_1.las'},
+        'TFW': {'ext': ('.tfw', '.TFW'), 'title': 'TFW GIS File', 'desc': 'World coordinate file', 'default': '3_1.tfw'}
+    }
+
+    if len(sys.argv) < 1 + len(required_files):
+        titles = ['[' + file_types[file_type]['title'] + ']' for file_type in required_files]
+        if not use_defaults:
+            print('Default Usage:  ', os.path.basename(__file__), ', '.join(titles))
+        for i, file_type in enumerate(required_files):
+            if use_defaults:
+                file_name = file_types[file_type]['default']
+            else:
+                print(f'No {file_type} file specified: opening prompt')
+                file_name = tkinter.filedialog.askopenfilename(initialdir=os.getcwd(),
+                                                               title=f'Select the {file_type} File',
+                                                               filetypes=[(file_types[file_type]['desc'],
+                                                                           file_types[file_type]['ext'])])
+            file_names[file_type] = file_name
+    else:
+        for i, file_type in enumerate(required_files):
+            file_names[file_type] = sys.argv[i + 1]
+
+    for file_t in file_names:
+        if not os.path.isfile(file_names[file_t]):
+            print(f'Invalid {file_t} file path: {file_names[file_t]}')
+            exit(1)
+
+    root.destroy()
+    return file_names
+
+
+def toggle_state(queue_obj: multiprocessing.Queue, value):
+    d = {
+        'time': time.time(),
+        'value': value
+    }
+    queue_obj.put(d)
+    print(queue_obj.qsize())
 
 
 def gui_main(inp_q: multiprocessing.Queue, out_q: multiprocessing.Queue):

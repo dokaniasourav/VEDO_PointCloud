@@ -215,6 +215,10 @@ def on_left_click(event):
             g_plot.vehicle_data.height = g_plot.vehicle_data.wheel_radius / 2
             g_plot.vehicle_data.position = [cpt[0], cpt[1], (cpt[2] + g_plot.vehicle_data.wheel_radius)]
 
+            ''' Amount of offset to be added when rendering the vehicle can be defined here '''
+
+            first_time_offset = 2.0
+
             veh_l = g_plot.vehicle_data.length
             veh_f = g_plot.vehicle_data.front_overhang
             veh_b = g_plot.vehicle_data.back_overhang
@@ -225,7 +229,7 @@ def on_left_click(event):
 
             veh_x = g_plot.vehicle_data.position[0]
             veh_y = g_plot.vehicle_data.position[1]
-            veh_z = g_plot.vehicle_data.position[2] + 2
+            veh_z = g_plot.vehicle_data.position[2] + first_time_offset
 
             ## Ignoring the wheel width effect for now
             whl_bottoms = [[veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z - whl_r],  # left, bottom
@@ -319,16 +323,25 @@ def on_left_click(event):
             # print(whl_bottoms)
 
             close_meshes = []
+            close_points = []
             for i, whl_bottom in enumerate(whl_bottoms):
-                close_point = cloud.closestPoint(whl_bottom, radius=3)
-                mesh_i = vedo.delaunay2D(close_point).c('pink')
+                # Find a close point first
+                close_point = find_closest_point(whl_bottom, dist_threshold=0.5, aggressive=4.0)
+                print(HpF.dist_xyz([close_point, whl_bottom]))
+                close_points.append(close_point)
+                add_point(close_point, size=Glb.RD_4)
+
+                close_mesh_points = cloud.closestPoint(close_point, radius=whl_r)
+                mesh_i = vedo.delaunay2D(close_mesh_points).c('pink')
                 close_meshes.append(mesh_i)
                 plt.add(mesh_i)
 
-            ''' Find the intersection with single wheel first '''
+            '''
+                Find the intersection with single wheel first 
+            '''
             on_ground = []
             move_down_by = 0.4096
-            accuracy_req = 0.0002
+            accuracy_req = 0.0001
             new_whl_mesh_pos = wheel_mesh.pos()
             new_whl_bottom_pos = wheel_bottom_mesh.pos()
             while True:
@@ -350,6 +363,7 @@ def on_left_click(event):
                         break
                 if len(on_ground) > 0:
                     if move_down_by <= accuracy_req:
+                        print('On ground = ', on_ground)
                         break
                     else:
                         new_whl_mesh_pos[2] += move_down_by
@@ -361,20 +375,46 @@ def on_left_click(event):
 
             whl_bottoms = wheel_bottom_mesh.points()
 
-            ''' Now rotate around that first touching wheel '''
+            '''
+                Now rotate around that first touching wheel
+            '''
             rot_index = [[0, 3], [1, 2], [2, 1], [3, 0]]
             wheel_num = on_ground[0]
             rot_axis = HpF.sub_point(whl_bottoms[rot_index[wheel_num][1]],
                                      whl_bottoms[rot_index[wheel_num][0]])
             per_axis = [1, 0 - (rot_axis[0] / rot_axis[1]), 0]
-            rot_angle = -0.1
-            print('Rotate by: ', end='')
+            rot_angle = 0.4
+            '''
+                Dir testing of the Vehicle's rotation angle
+            '''
+
+            # Get initial distance
+            whl_bottoms = wheel_bottom_mesh.points()
+            dist_before_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+                                                 close_points[rot_index[wheel_num][1]]])
+            ## Test the rotation with the angle
+            wheel_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
+            wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
+            whl_bottoms = wheel_bottom_mesh.points()
+            plt.render()
+
+            ## Re-calculate the distance and check
+            dist_after_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+                                                close_points[rot_index[wheel_num][1]]])
+            print(dist_before_rotation - dist_after_rotation)
+            if dist_after_rotation > dist_before_rotation:
+                rot_angle *= -1
+
+            rot_accu_req = 0.01
+            print('\n Rotate by: ')
             while True:
                 whl_bottoms = wheel_bottom_mesh.points()
                 wheel_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
                 wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
                 plt.render()
-                print(rot_angle, ', ', end='')
+                print(rot_angle, ' -- dist = ',
+                      HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+                                    close_points[rot_index[wheel_num][1]]]))
                 for wi, close_mesh in enumerate(close_meshes):
                     if wi == wheel_num:
                         continue
@@ -386,18 +426,56 @@ def on_left_click(event):
                         on_ground.append(wi)
                         break
                 if len(on_ground) > 1:
-                    print(on_ground)
-                    break
+                    if abs(rot_angle) > rot_accu_req:
+                        whl_bottoms = wheel_bottom_mesh.points()
+                        wheel_mesh.rotate(0-rot_angle, per_axis, whl_bottoms[wheel_num])
+                        wheel_bottom_mesh.rotate(0-rot_angle, per_axis, whl_bottoms[wheel_num])
+                        plt.render()
+                        rot_angle = rot_angle / 2.0
+                        on_ground = [wheel_num]
+                    else:
+                        print('On ground = ', on_ground)
+                        break
 
-            ''' And finally around two wheels '''
+            '''
+                And finally around two wheels
+            '''
             rot_axis = HpF.sub_point(whl_bottoms[on_ground[0]],
                                      whl_bottoms[on_ground[1]])
-            rot_angle = -0.1
-            print('\nRotate by: ', end='')
+            rot_angle = 0.4
+
+            rem_wheels = []
+            for i in range(0, 4):
+                if i not in on_ground:
+                    rem_wheels.append(i)
+
+            # Get initial distance
+            whl_bottoms = wheel_bottom_mesh.points()
+
+            dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
+            dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
+
+            print('Dist1 = ', dist_1)
+            print('Dist2 = ', dist_2)
+
+            ## Test the rotation with the angle
+            wheel_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
+            wheel_bottom_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
+            whl_bottoms = wheel_bottom_mesh.points()
+            plt.render()
+
+            ## Re-calculate the distance and check
+            dist_11 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
+            dist_22 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
+
+            print('Dist1 diff = ', dist_1 - dist_11)
+            print('Dist2 diff = ', dist_2 - dist_22)
+
+            print('\nRotate by: ')
             while True:
                 whl_bottoms = wheel_bottom_mesh.points()
                 wheel_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
-                wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
+                wheel_bottom_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
                 plt.render()
                 print(rot_angle, ', ', end='')
                 for wi, close_mesh in enumerate(close_meshes):
@@ -411,8 +489,18 @@ def on_left_click(event):
                         on_ground.append(wi)
                         break
                 if len(on_ground) > 2:
-                    print(on_ground)
-                    break
+                    if abs(rot_angle) > rot_accu_req:
+                        whl_bottoms = wheel_bottom_mesh.points()
+                        wheel_mesh.rotate(0-rot_angle, rot_axis, whl_bottoms[wheel_num])
+                        wheel_bottom_mesh.rotate(0-rot_angle, rot_axis, whl_bottoms[wheel_num])
+                        plt.render()
+                        rot_angle = rot_angle / 2.0
+                        on_ground = [on_ground[0], on_ground[1]]
+                    else:
+                        print('On ground = ', on_ground)
+                        break
+            ''' ____1____ ____2____ ____3____ ____4____ ____5____ ____6____ ____7____ ____8____ ____9____ '''
+
             # for i, pt in enumerate(whl_bottoms):
             #     close_pt = cloud.closestPoint(pt, radius=mesh_rad)
             #     if len(close_pt) > 2:
@@ -569,6 +657,9 @@ def on_left_click(event):
                 max_points = int(round(HpF.dist_xyz([g_plot.current_points[0],
                                                      g_plot.current_points[1]]) / Glb.SCALE_FACTOR))
                 update_text('text5', f'Max points = {max_points}')
+
+                root = tkinter.Tk()
+                root.withdraw()
                 num_points = int(tkinter.simpledialog.askinteger("Input Dialog",
                                                                  f"\n\tNumber of points on map,"
                                                                  f" max ({max_points}): \t\n",
@@ -577,6 +668,7 @@ def on_left_click(event):
                                                                  ))
                 update_text('text4', f'{round(num_points)} points selected')
                 get_avg_slope(num_points)
+                root.destroy()
                 g_plot.current_points = []
             elif g_plot.plotter_mode == Glb.RECTANGLE_MODE:
                 update_text('text4', 'Make the desired rectangle')
@@ -1148,61 +1240,8 @@ def move_camera(point):
     # plt.show(g_plot.show_ele_list, interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True, camera=new_cam)
 
 
-def get_file_names(required_files):
-    global g_plot
-    file_names = {}
-    if required_files is None or len(required_files) == 0:
-        return file_names
-
-    use_defaults = True
-    root = tkinter.Tk()
-    root.withdraw()
-    file_types = {
-        'PLY': {'ext': ('.ply', '.PLY'), 'title': 'PLY File', 'desc': 'Point-cloud file', 'default': 't3.ply'},
-        'TIF': {'ext': ('.tif', '.tiff'), 'title': 'TIF File', 'desc': 'Tagged Image File', 'default': '3_1.tif'},
-        'PNG': {'ext': ('.png', '.jpg', '.jpeg'), 'title': 'Image File', 'desc': 'Image Files', 'default': '3_1.png'},
-        'LAS': {'ext': ('.las', '.LAS'), 'title': 'LAS File', 'desc': 'LAS point file', 'default': '3_1.las'},
-        'TFW': {'ext': ('.tfw', '.TFW'), 'title': 'TFW GIS File', 'desc': 'World coordinate file', 'default': '3_1.tfw'}
-    }
-
-    if len(sys.argv) < 1 + len(required_files):
-        titles = ['[' + file_types[file_type]['title'] + ']' for file_type in required_files]
-        if not use_defaults:
-            print('Default Usage:  ', os.path.basename(__file__), ', '.join(titles))
-        for i, file_type in enumerate(required_files):
-            if use_defaults:
-                file_name = file_types[file_type]['default']
-            else:
-                print(f'No {file_type} file specified: opening prompt')
-                file_name = tkinter.filedialog.askopenfilename(initialdir=os.getcwd(),
-                                                               title=f'Select the {file_type} File',
-                                                               filetypes=[(file_types[file_type]['desc'],
-                                                                           file_types[file_type]['ext'])])
-            file_names[file_type] = file_name
-    else:
-        for i, file_type in enumerate(required_files):
-            file_names[file_type] = sys.argv[i + 1]
-
-    for file_t in file_names:
-        if not os.path.isfile(file_names[file_t]):
-            print(f'Invalid {file_t} file path: {file_names[file_t]}')
-            exit(1)
-
-    root.destroy()
-    return file_names
-
-
 def button_func():
     print('Pressed')
-
-
-def toggle_state(queue_obj: multiprocessing.Queue, value):
-    d = {
-        'time': time.time(),
-        'value': value
-    }
-    queue_obj.put(d)
-    print(queue_obj.qsize())
 
 
 vedo.settings.enableDefaultKeyboardCallbacks = False
@@ -1220,7 +1259,7 @@ def plt_main(inp_q, out_q):
     g_plot.out_q = out_q
     # [ply_file, pic_name, las_file] = get_file_names()
     req_files = ['PLY', 'TFW']
-    file_names = get_file_names(req_files)
+    file_names = Intf.get_file_names(req_files)
     print(f'Selected files: {file_names}')
 
     ply_file = file_names['PLY']
@@ -1308,25 +1347,12 @@ def plt_main(inp_q, out_q):
              camera=cam)
 
 
-def key_press(event):
-    global g_plot
-    g_plot.last_key_press = event.char
-    print(event)
-
-
-def add_rectangle(points):
-    if len(points) < 3:
-        print('Insufficient points')
-        return
-
-
 def find_closest_point(point, num_retry=60, dist_threshold=1.0, aggressive=2.0):
     fact = 1.0
-    aggressive = aggressive ** 0.1111
-    dist_found = 0.0
+    aggressive = aggressive ** 0.1111   # 2^0.1111 ~= 1.08
+    # dist_found = 0.0
     min_dist = 9999999.9
     closest_pt_yet = []
-    ## 2^0.1111 is about 1.08
     for rt in range(0, num_retry):
         # rand_point = [(xyz + (random.random() - 0.5)*fact) for xyz in point]
         rand_point = [point[0], point[1], point[2] - (random.random() - 0.25) * fact]
