@@ -85,7 +85,7 @@ def enter_callback(event):
         # all_tasks['timer_id'] = plt.timerCallback('create', dt=10)
         g_plot.initialized = True
     if g_plot.timerID is not None:
-        plt.timerCallback('destroy', timerId=g_plot.timerID)
+        plt.timer_callback('destroy', timerId=g_plot.timerID)
         g_plot.timerID = None
 
 
@@ -124,7 +124,7 @@ def handle_timer(event):
     for done_key in done_keys:
         post_timer_completion(all_tasks[done_key])
         timer_id = all_tasks[done_key]['timer']
-        plt.timerCallback('destroy', timerId=timer_id)
+        plt.timer_callback('destroy', timerId=timer_id)
         del all_tasks[done_key]
 
     if g_plot.timerID is not None:
@@ -156,7 +156,7 @@ def add_timer_task(task_name, task_type, task_data, meta=None, post_completion='
             'index': 0,
             'post': post_completion,
             'type': task_type,
-            'timer': plt.timerCallback('create', dt=10),
+            'timer': plt.timer_callback('create', dt=10),
             'meta': meta
         }
 
@@ -481,7 +481,7 @@ def state_vehicle(cpt):
         add_point(close_point, size=Glb.RD_4)
 
         close_mesh_points = cloud.closestPoint(close_point, radius=whl_r*1.5)
-        mesh_i = vedo.delaunay2D(close_mesh_points).c('pink')
+        mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
         close_meshes.append(mesh_i)
         plt.add(mesh_i)
 
@@ -689,7 +689,7 @@ def make_wheel_bottom_mesh(vehicle_data: Intf.VehicleData):
                    [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z - whl_r]]  # right, top
 
     wheel_bottom_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]])
-    wheel_bottom_mesh.lineColor('yellow')
+    wheel_bottom_mesh.linecolor('yellow')
 
     return wheel_bottom_mesh
 
@@ -780,7 +780,7 @@ def make_vehicle_mesh(vehicle_data: Intf.VehicleData):
 
     ''' Wheel mesh object along with vehicle object '''
     vehicle_mesh = vedo.Mesh([whl_points, connections])
-    vehicle_mesh.backColor('orange4').color('orange').lineColor('black').lineWidth(1)
+    vehicle_mesh.backcolor('orange4').color('orange').linecolor('black').linewidth(1)
     return vehicle_mesh
 
 
@@ -1144,7 +1144,7 @@ def move_camera(point):
     #                viewup=(0, 1.00, 0),
     #                clippingRange=(218.423, 388.447)
     #                )
-    plt.flyTo(point)
+    plt.fly_to(point)
     # plt.show(g_plot.show_ele_list, interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True, camera=new_cam)
 
 
@@ -1263,7 +1263,7 @@ def plt_main(inp_q, out_q):
                viewup=(0, 1.00, 0),
                clippingRange=(218.423, 388.447)
                )
-    plt.show(g_plot.show_ele_list, interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True,
+    plt.show(g_plot.show_ele_list, bg='white', axes=1, zoom=1.0, interactive=True,
              camera=cam)
 
 
