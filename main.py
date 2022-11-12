@@ -1357,7 +1357,6 @@ all_tasks = {
 
 
 def main():
-    print(vedo.printInfo(vedo))
     inp_q = multiprocessing.Queue()
     out_q = multiprocessing.Queue()
 
