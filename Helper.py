@@ -113,3 +113,23 @@ def avg_point(points):
     return [(points[1][0] + points[0][0]) / 2.0,
             (points[1][1] + points[0][1]) / 2.0,
             (points[1][2] + points[0][2]) / 2.0]
+
+
+def two_point_op(points, op='SUB'):
+    if len(points) < 2:
+        return []
+
+    if op == 'SUB':
+        return [points[0][0] - points[1][0],
+                points[0][1] - points[1][1],
+                points[0][2] - points[1][2]]
+    if op == 'ADD':
+        return [points[1][0] + points[0][0],
+                points[1][1] + points[0][1],
+                points[1][2] + points[0][2]]
+    if op == 'AVG':
+        return [(points[1][0] + points[0][0]) / 2.0,
+                (points[1][1] + points[0][1]) / 2.0,
+                (points[1][2] + points[0][2]) / 2.0]
+
+

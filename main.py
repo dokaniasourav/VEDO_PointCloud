@@ -188,6 +188,8 @@ def on_left_click(event):
     if cpt is None:  # Cant do much if point is not found
         return
 
+    move_camera(cpt)
+
     if g_plot.plotter_mode == Glb.SLOPE_AVG_MODE:
         state_slope_avg(cpt)
     elif g_plot.plotter_mode == Glb.RECTANGLE_MODE:
@@ -444,9 +446,6 @@ def state_rectangle(cpt):
 
 def state_vehicle(cpt):
     update_text('text2', 'Vehicle mode and Tracking: ON')
-
-    ## Getting the attributes of the vehicle using a separate function
-    print('Click to add a starting position for Vehicle')
     new_window = multiprocessing.Process(target=Intf.get_vehicle_data, args=(g_plot.out_q,))
     new_window.start()
     new_window.join()
@@ -461,7 +460,7 @@ def state_vehicle(cpt):
     ''' Wheel bottom mesh and vehicular body mesh '''
     vehicle_mesh = make_vehicle_mesh(g_plot.vehicle_data)
     wheel_bottom_mesh = make_wheel_bottom_mesh(g_plot.vehicle_data)
-    plt.add(wheel_bottom_mesh)
+    plt.add(vehicle_mesh)
 
     whl_bottoms = wheel_bottom_mesh.points()
     vehicle_mesh.rotate(15, [0, 0, 1], whl_bottoms[0])
@@ -494,6 +493,8 @@ def state_vehicle(cpt):
     accuracy_req = 0.0003
     new_whl_mesh_pos = vehicle_mesh.pos()
     new_whl_bottom_pos = wheel_bottom_mesh.pos()
+    print('Translation of vehicle: ')
+    last_wheel_position = new_whl_mesh_pos[2]
     while True:
         new_whl_mesh_pos[2] -= move_down_by
         new_whl_bottom_pos[2] -= move_down_by
@@ -501,14 +502,12 @@ def state_vehicle(cpt):
         wheel_bottom_mesh.pos(new_whl_bottom_pos)
         plt.render()
 
-        print('Moving down by ', move_down_by)
         for wi, close_mesh in enumerate(close_meshes):
-            # Intersection areas to show
             con_i = close_mesh.intersectWith(vehicle_mesh)
             con_i.c('blue')
             int_points = con_i.points()
             if len(int_points) > 0:
-                print('Found ', len(int_points), ' intersection points for wheel ', wi)
+                print(len(int_points))
                 on_ground.append(wi)
                 break
         if len(on_ground) > 0:
@@ -523,6 +522,7 @@ def state_vehicle(cpt):
                 move_down_by = move_down_by / 2.0
                 on_ground = []
 
+    print('Moved down by ', last_wheel_position - new_whl_mesh_pos[2])
     whl_bottoms = wheel_bottom_mesh.points()
 
     '''
@@ -552,20 +552,20 @@ def state_vehicle(cpt):
     ## Re-calculate the distance and check
     dist_after_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
                                         close_points[rot_index[wheel_num][1]]])
-    print(dist_before_rotation - dist_after_rotation)
     if dist_after_rotation > dist_before_rotation:
         rot_angle = 0 - rot_angle
+        print('Changed rotation direction')
 
     rot_accu_req = 0.01
-    print('\n Rotate by: ')
+    print('\n Rotate around one wheel')
     while True:
         whl_bottoms = wheel_bottom_mesh.points()
         vehicle_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
         wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
         plt.render()
-        print(rot_angle, ' -- dist = ',
-              HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
-                            close_points[rot_index[wheel_num][1]]]))
+        # print(rot_angle, ' -- dist = ',
+        #       HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+        #                     close_points[rot_index[wheel_num][1]]]))
         for wi, close_mesh in enumerate(close_meshes):
             if wi == wheel_num:
                 continue
@@ -573,7 +573,7 @@ def state_vehicle(cpt):
             con_i.c('blue')
             int_points = con_i.points()
             if len(int_points) > 0:
-                print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
+                # print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
                 on_ground.append(wi)
                 break
         if len(on_ground) > 1:
@@ -605,8 +605,7 @@ def state_vehicle(cpt):
 
     dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
     dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
-
-    print('D1 = ', dist_1, ' and D2 = ', dist_2)
+    # print('D1 = ', dist_1, ' and D2 = ', dist_2)
 
     ## Test the rotation with the angle
     vehicle_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
@@ -637,7 +636,7 @@ def state_vehicle(cpt):
         plt.render()
         dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
         dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
-        print(rot_angle, ' -- dist = ', dist_1, dist_2)
+        # print(rot_angle, ' -- dist = ', dist_1, dist_2)
         for wi, close_mesh in enumerate(close_meshes):
             if wi in on_ground:
                 continue
@@ -645,7 +644,7 @@ def state_vehicle(cpt):
             con_i.c('blue')
             int_points = con_i.points()
             if len(int_points) > 0:
-                print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
+                # print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
                 on_ground.append(wi)
                 break
         if len(on_ground) > 2:
@@ -784,6 +783,7 @@ def make_vehicle_mesh(vehicle_data: Intf.VehicleData):
     vehicle_mesh.backColor('orange4').color('orange').lineColor('black').lineWidth(1)
     return vehicle_mesh
 
+
 def mouse_track(event):
     global g_plot
 
@@ -831,8 +831,8 @@ def mouse_track(event):
         if len(g_plot.current_points) == 1:
             if len(g_plot.plotted_trackers) > 0:
                 plt.remove(g_plot.plotted_trackers.pop())
-            add_ruler([g_plot.current_points[-1], mouse_point], width=3, col='yellow', size=Glb.TEXT_SIZE)
-            update_text('text3', f'Dist: {HpF.dist_xyz([g_plot.current_points[-1], mouse_point]):.3f}')
+            add_ruler([g_plot.current_points[0], mouse_point], width=3, col='yellow', size=Glb.TEXT_SIZE)
+            update_text('text3', f'Dist: {HpF.dist_xyz([g_plot.current_points[0], mouse_point]):.3f}')
             return
 
 
@@ -931,70 +931,57 @@ def update_text(text_id, value, rel_pos=None, size=Glb.TEXT_SIZE):
     plt.add(new_text)
 
 
-def two_point_op(points, op='SUB'):
-    if len(points) < 2:
-        return []
-
-    if op == 'SUB':
-        return [points[0][0] - points[1][0],
-                points[0][1] - points[1][1],
-                points[0][2] - points[1][2]]
-    if op == 'ADD':
-        return [points[1][0] + points[0][0],
-                points[1][1] + points[0][1],
-                points[1][2] + points[0][2]]
-    if op == 'AVG':
-        return [(points[1][0] + points[0][0]) / 2.0,
-                (points[1][1] + points[0][1]) / 2.0,
-                (points[1][2] + points[0][2]) / 2.0]
-
-
 def print_point(point):
     print(','.join(['%.3f' % e for e in (point - g_plot.min_xyz)]))
 
 
 # Get the average slope of from point to point for a specified number of pt on the line
+
+def get_point_list(end_points, num_points):
+    global g_plot, cloud
+    points_to_use = [end_points[0]]
+
+    z_offset = 0
+    x_unit = (end_points[1][0] - end_points[0][0]) / (num_points + 1)
+    y_unit = (end_points[1][1] - end_points[0][1]) / (num_points + 1)
+    cur_point = end_points[0]
+
+    bad_point_count = made_better = 0
+    acceptable_dist = 0.2
+    for i in range(0, num_points):
+        new_approx_point = [cur_point[0] + x_unit, cur_point[1] + y_unit, cur_point[2] + z_offset]
+        # add_point(new_approx_point, size=Glb.RD_4, col='white', silent=True)
+        new_actual_point = cloud.closestPoint(new_approx_point)
+        xy_dist_temp = HpF.dist_xy([new_approx_point, new_actual_point])
+        if xy_dist_temp < acceptable_dist:
+            points_to_use.append(new_actual_point)
+            z_offset = new_actual_point[2] - new_approx_point[2]
+        else:
+            bad_point_count += 1
+            new_approx_point = [cur_point[0] + (x_unit * 1.1), cur_point[1] + (y_unit * 1.1),
+                                cur_point[2] + z_offset]
+            new_actual_points = cloud.closestPoint(new_approx_point, radius=acceptable_dist)
+            if len(new_actual_points) > 1:
+                made_better += 1
+                points_to_use.append(new_actual_points[0])
+                z_offset = new_actual_points[0][2] - new_approx_point[2]
+        cur_point = new_approx_point
+    print('Bad points = ', bad_point_count)
+
+    if len(points_to_use) < 1:
+        print('Error in point selection. Aborting')
+        return []
+    points_to_use.append(end_points[1])
+    return points_to_use
+
+
 def get_avg_slope(num_points):
     global g_plot, cloud, all_tasks
     update_text('text3', 'Enter num pt:')
 
-    if num_points == 0:
-        points_to_use = g_plot.current_points
-    else:
-        x_unit = (g_plot.current_points[1][0] - g_plot.current_points[0][0]) / (num_points + 1)
-        y_unit = (g_plot.current_points[1][1] - g_plot.current_points[0][1]) / (num_points + 1)
-        cur_point = g_plot.current_points[0]
-        z_offset = 0
-        points_to_use = []
-        bad_point_count = made_better = 0
-        acceptable_dist = 0.2
-        for i in range(0, num_points):
-            new_approx_point = [cur_point[0] + x_unit, cur_point[1] + y_unit, cur_point[2] + z_offset]
-            # add_point(new_approx_point, size=Glb.RD_4, col='white', silent=True)
-            new_actual_point = cloud.closestPoint(new_approx_point)
-            xy_dist_temp = HpF.dist_xy([new_approx_point, new_actual_point])
-            if xy_dist_temp < acceptable_dist:
-                points_to_use.append(new_actual_point)
-                z_offset = new_actual_point[2] - new_approx_point[2]
-            else:
-                bad_point_count += 1
-                new_approx_point = [cur_point[0] + (x_unit * 1.1), cur_point[1] + (y_unit * 1.1),
-                                    cur_point[2] + z_offset]
-                new_actual_points = cloud.closestPoint(new_approx_point, radius=acceptable_dist)
-                if len(new_actual_points) > 1:
-                    made_better += 1
-                    points_to_use.append(new_actual_points[0])
-                    z_offset = new_actual_points[0][2] - new_approx_point[2]
-            cur_point = new_approx_point
-        print('Bad points = ', bad_point_count)
+    points_to_use = get_point_list(g_plot.current_points, num_points)
 
-        if len(points_to_use) < 1:
-            print('Error in point selection. Aborting')
-            return
-        points_to_use.insert(0, g_plot.current_points[0])
-        points_to_use.append(g_plot.current_points[1])
     # Loop through pt and plot them
-
     update_text('text3', f'Rendering {len(points_to_use)} pt')
     print(f'Rendering {len(points_to_use)} on map ', end='')
     # st = '.'
@@ -1004,6 +991,7 @@ def get_avg_slope(num_points):
     #     st += '.'
     #     print('.', end='')
     # time.sleep(0.3)
+
     print(' Done!')
     lines_to_use = []
     for i in range(len(points_to_use) - 1):
@@ -1139,7 +1127,7 @@ def my_camera_reset():
 
 
 def rem_all_trackers():
-    global g_plot
+    global g_plot, plt
     for line in g_plot.plotted_trackers:
         plt.remove(line)
     g_plot.plotted_trackers = []
@@ -1165,7 +1153,7 @@ def button_func():
 
 
 vedo.settings.enableDefaultKeyboardCallbacks = False
-plt = vedo.Plotter(pos=[0, 0], size=[600, 1080])
+plt = vedo.Plotter(pos=[0, 0], size=[800, 1080])
 temp_file = open('temp_file', mode='w+')
 temp_file.close()
 cloud = vedo.load('temp_file')
@@ -1320,11 +1308,7 @@ def find_closest_point(point, num_retry=60, dist_threshold=0.2, aggressive=2.0):
 
 class LocalPlotter:
     plotter_mode = Glb.VEHICLE_RUNNER
-    # slope_avg_mode = False
-    # rectangle_mode = False
-    # vehicle_mode = False
     tracking_mode = False
-    # slider_selected = False
     initialized = False
     min_xyz: []
     max_xyz: []
@@ -1345,6 +1329,7 @@ class LocalPlotter:
     rect_points = []
     show_ele_list = []
     vehicle = vedo.Box()
+    gp_int_state = 0
     vehicle_data = Intf.VehicleData()
 
 
