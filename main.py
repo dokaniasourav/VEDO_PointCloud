@@ -6,6 +6,7 @@ from pprint import pprint
 
 import vedo
 import copy
+import scipy
 import random
 import tkinter
 import numpy as np
@@ -660,7 +661,7 @@ def state_vehicle(cpt):
                 break
 
     close_mesh_points = cloud.closestPoint(cpt, radius=veh_l*2)
-    mesh_i = vedo.delaunay2D(close_mesh_points).c('pink')
+    mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
     con_i = vehicle_mesh.intersectWith(mesh_i).c('red')
     plt.add(con_i)
 
@@ -1152,7 +1153,7 @@ def button_func():
     print('Pressed')
 
 
-vedo.settings.enableDefaultKeyboardCallbacks = False
+vedo.settings.enable_default_keyboard_callbacks = False
 plt = vedo.Plotter(pos=[0, 0], size=[800, 1080])
 temp_file = open('temp_file', mode='w+')
 temp_file.close()
@@ -1216,7 +1217,7 @@ def plt_main(inp_q, out_q):
 
     ################################################################################################
     # st = time.time()
-    # new_mesh = delaunay2D(cloud.points()).alpha(0.3).c('grey')  # Some new_mesh object with low alpha
+    # new_mesh = delaunay2d(cloud.points()).alpha(0.3).c('grey')  # Some new_mesh object with low alpha
     # dim = pic.dimensions()
     # range_xyz = g_plot.max_xyz - g_plot.min_xyz
     # scale_fact = [range_xyz[0] / dim[0], range_xyz[1] / dim[1], 1]
