@@ -490,7 +490,7 @@ def state_vehicle(cpt):
         plt.render()
         print('Add a second point to track the vehicle')
 
-        ## 4.
+        ## 4. Set global variables
         g_plot.gp_int_state = 2
         g_plot.tracking_mode = True
         print('Tracking mode is ON')
@@ -498,15 +498,13 @@ def state_vehicle(cpt):
     elif g_plot.gp_int_state == 2:
         g_plot.tracking_mode = False
         add_point(cpt, size=Glb.RD_4, col='purple', is_text=True, custom_text='Point B')
-        two_points = g_plot.current_points[1:]
+        two_points = g_plot.current_points[0:]
         g_plot.current_points = []
         list_of_points = get_point_list(two_points, 5)
         for point in list_of_points:
             add_point(point, size=Glb.RD_3)
 
         vehicle_mesh = g_plot.vehicle_data.vehicle_mesh
-        wheel_bottom_mesh = make_wheel_bottom_mesh(g_plot.vehicle_data)
-        g_plot.vehicle_data.bottom_mesh = wheel_bottom_mesh
 
         vehicle_mesh.pos(HpF.sub_points(two_points[0], g_plot.vehicle_data.position))
         wheel_bottom_mesh.pos(HpF.sub_points(two_points[0], g_plot.vehicle_data.position))
