@@ -106,7 +106,37 @@ def sub_points(point1: list[float], point2: list[float]) -> list[float]:
     :return: point1 - point2
     :rtype: Array
     """
+    if len(point1) < 3 or len(point1) != len(point2):
+        print('Invalid arguments for point sub operation')
+        return []
+
     return [point1[0] - point2[0], point1[1] - point2[1], point1[2] - point2[2]]
+
+
+def dot_points(point1: list[float], point2: list[float]) -> list[float]:
+    """
+    :param point1: First point
+    :param point2: Second point
+    :return: point1 + point2
+    :rtype: Array
+    """
+    if len(point1) < 3 or len(point1) != len(point2):
+        print('Invalid arguments for point dot operation')
+        return []
+    return [point1[0] * point2[0], point1[1] * point2[1], point1[2] * point2[2]]
+
+
+def mul_points(point1: list[float], multiplier: float) -> list[float]:
+    """
+    :param point1: First point
+    :param multiplier: Scaler to multiply with
+    :return: point1 * multiplier
+    :rtype: Array
+    """
+    if len(point1) < 3:
+        print('Invalid arguments for point mul operation')
+        return []
+    return [point1[0] * multiplier, point1[1] * multiplier, point1[2] * multiplier]
 
 
 def add_points(point1: list[float], point2: list[float]) -> list[float]:
@@ -116,6 +146,9 @@ def add_points(point1: list[float], point2: list[float]) -> list[float]:
     :return: A + B
     :rtype: List
     """
+    if len(point1) < 3 or len(point1) != len(point2):
+        print('Invalid arguments for point mul operation')
+        return []
     return [point1[0] + point2[0], point1[1] + point2[1], point1[2] + point2[2]]
 
 
@@ -157,5 +190,3 @@ def two_point_op(points, op='SUB'):
         return [(points[1][0] + points[0][0]) / 2.0,
                 (points[1][1] + points[0][1]) / 2.0,
                 (points[1][2] + points[0][2]) / 2.0]
-
-

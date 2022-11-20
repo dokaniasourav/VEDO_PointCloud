@@ -13,7 +13,7 @@ class VehicleData:
     width: float
     length: float
     height: float
-    position: list[float]
+    positions: list[list[float]]
     num_wheels: int
     wheel_width: float
     wheel_radius: float
