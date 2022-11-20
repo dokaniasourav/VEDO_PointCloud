@@ -103,10 +103,10 @@
 #         update_text('text5', 'Press R to enter slope mode',
 #                     [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 2 * TEXT_SPACING, 5])
 #         update_text('text6', '', [3, g_plot.max_xyz[1] - g_plot.min_xyz[1] + 1 * TEXT_SPACING, 5])
-#         # all_tasks['timer_id'] = plt.timerCallback('create', dt=10)
+#         # all_tasks['timer_id'] = plt.timer_callback('create', dt=10)
 #         g_plot.initialized = True
 #     if g_plot.timerID is not None:
-#         plt.timerCallback('destroy', timerId=g_plot.timerID)
+#         plt.timer_callback('destroy', timerId=g_plot.timerID)
 #         g_plot.timerID = None
 #
 #
@@ -115,7 +115,7 @@
 #     # if 'timer_id' in all_tasks.keys():
 #     #     return
 #     # if g_plot.timerID is None:
-#     #     g_plot.timerID = plt.timerCallback('create', dt=500)
+#     #     g_plot.timerID = plt.timer_callback('create', dt=500)
 #
 #
 # def handle_timer(event):
@@ -145,7 +145,7 @@
 #     for done_key in done_keys:
 #         post_timer_completion(all_tasks[done_key])
 #         timer_id = all_tasks[done_key]['timer']
-#         plt.timerCallback('destroy', timerId=timer_id)
+#         plt.timer_callback('destroy', timerId=timer_id)
 #         del all_tasks[done_key]
 #
 #     if g_plot.timerID is not None:
@@ -177,7 +177,7 @@
 #             'index': 0,
 #             'post': post_completion,
 #             'type': task_type,
-#             'timer': plt.timerCallback('create', dt=10),
+#             'timer': plt.timer_callback('create', dt=10),
 #             'meta': meta
 #         }
 #
@@ -415,18 +415,14 @@
 #                     #       ', horizontal = ', horizontal_angle)
 #                     g_plot.tracking_mode = False
 #                     g_plot.plotter_mode = IDEAL_PLT_MODE
-#
+#                     root = tkinter.Tk()
+#                     root.withdraw()
 #                     num_points = int(tkinter.simpledialog.askinteger("Input a number",
 #                                                                      "Number of points on line",
 #                                                                      initialvalue=4,
 #                                                                      minvalue=1, maxvalue=1000
 #                                                                      ))
-#                     # while num_points == 0:
-#                     #     try:
-#                     #         print('Enter number of points on line: ')
-#                     #         num_points = int(tkinter.simpledialog.askstring("Input number of points", "Input the number"))
-#                     #     except ValueError:
-#                     #         print('A numerical value is required, try again')
+#                     root.destroy()
 #                     point_star_logging = []
 #                     add_line([g_plot.current_points[3], g_plot.current_points[4]],
 #                              width=4, col='lightgreen', elevation=2)
@@ -1061,7 +1057,7 @@
 #     #                viewup=(0, 1.00, 0),
 #     #                clippingRange=(218.423, 388.447)
 #     #                )
-#     plt.flyTo(point)
+#     plt.fly_to(point)
 #     # plt.show(g_plot.show_ele_list, interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True, camera=new_cam)
 #
 #
@@ -1141,7 +1137,7 @@
 #     root.mainloop()
 #
 #
-# vedo.settings.enableDefaultKeyboardCallbacks = False
+# vedo.settings.enable_default_keyboard_callbacks = False
 # plt = vedo.Plotter(pos=[0, 0], size=[600, 1080])
 # temp_file = open('temp_file', mode='w+')
 # temp_file.close()
@@ -1240,7 +1236,7 @@
 #                viewup=(0, 1.00, 0),
 #                clippingRange=(218.423, 388.447)
 #                )
-#     plt.show(g_plot.show_ele_list, interactorStyle=0, bg='white', axes=1, zoom=1.0, interactive=True,
+#     plt.show(g_plot.show_ele_list, mode=0, bg='white', axes=1, zoom=1.0, interactive=True,
 #              camera=cam)
 #
 #

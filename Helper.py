@@ -99,20 +99,46 @@ def get_rectangle(points):
     return [points[1], points[0], new_point_1, new_point_2]
 
 
-def sub_point(point1, point2):
+def sub_points(point1: list[float], point2: list[float]) -> list[float]:
+    """
+    :param point1: First point
+    :param point2: Second point
+    :return: point1 - point2
+    :rtype: Array
+    """
     return [point1[0] - point2[0], point1[1] - point2[1], point1[2] - point2[2]]
 
 
-def add_point(points):
-    return [(points[1][0] + points[0][0]),
-            (points[1][1] + points[0][1]),
-            (points[1][2] + points[0][2])]
+def add_points(point1: list[float], point2: list[float]) -> list[float]:
+    """
+    :param point1: Point A
+    :param point2: Point B
+    :return: A + B
+    :rtype: List
+    """
+    return [point1[0] + point2[0], point1[1] + point2[1], point1[2] + point2[2]]
 
 
-def avg_point(points):
-    return [(points[1][0] + points[0][0]) / 2.0,
-            (points[1][1] + points[0][1]) / 2.0,
-            (points[1][2] + points[0][2]) / 2.0]
+def avg_points(points: list[list[float]]) -> list[float]:
+    """
+    Return average of the given list of points
+    :param points:
+    :return:
+    """
+    sum_point = [0.0, 0.0, 0.0]
+    if len(points) > 1:
+        for point in points:
+            sum_point[0] += point[0]
+            sum_point[1] += point[1]
+            sum_point[2] += point[2]
+
+        sum_point[0] /= len(points)
+        sum_point[1] /= len(points)
+        sum_point[2] /= len(points)
+    else:
+        print('Need at least 2 points for averaging')
+
+    return sum_point
 
 
 def two_point_op(points, op='SUB'):

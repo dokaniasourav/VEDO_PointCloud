@@ -6,19 +6,23 @@ import os
 
 import tkinter.filedialog
 
+import vedo
+
 
 class VehicleData:
     width: float
     length: float
     height: float
-    position: []
+    position: list[float]
     num_wheels: int
     wheel_width: float
     wheel_radius: float
     back_overhang: float
     front_overhang: float
-    path_points = []
-    path_lines = []
+    path_points = list[float]
+    path_lines = list[float]
+    vehicle_mesh: list[vedo.Mesh]
+    bottom_mesh: vedo.Mesh
 
 
 def get_vehicle_data(gui_q, ):
@@ -29,14 +33,14 @@ def get_vehicle_data(gui_q, ):
 
     fields = {
         0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 10.0, 'min_v': 0.0,
-            's_name': '__', 'name': 'Enter the required vehicle parameters'},
+            's_name': '__', 'name': 'Enter the required vehicle parameters in feet'},
         1: {'data': tkinter.StringVar(), 'default': '1.4', 'max_v': 10.0, 'min_v': 0.1,
             's_name': 'back_overhang', 'name': 'Back Overhang'},
         2: {'data': tkinter.StringVar(), 'default': '2.4', 'max_v': 10.0, 'min_v': 0.1,
             's_name': 'front_overhang', 'name': 'Front Overhang'},
-        6: {'data': tkinter.StringVar(), 'default': '3.0', 'max_v': 40.0, 'min_v': 1.0,
+        6: {'data': tkinter.StringVar(), 'default': '10.0', 'max_v': 40.0, 'min_v': 1.0,
             's_name': 'length', 'name': 'Vehicle Length'},
-        7: {'data': tkinter.StringVar(), 'default': '1.8', 'max_v': 20.0, 'min_v': 1.0,
+        7: {'data': tkinter.StringVar(), 'default': '5.0', 'max_v': 20.0, 'min_v': 1.0,
             's_name': 'width', 'name': 'Vehicle Width'},
 
         3: {'data': tkinter.StringVar(), 'default': '0.6', 'max_v': 20.0, 'min_v': 0.1,
