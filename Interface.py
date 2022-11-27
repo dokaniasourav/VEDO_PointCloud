@@ -13,7 +13,8 @@ class VehicleData:
     width: float
     length: float
     height: float
-    positions: list[list[float]]
+    disp_location: list[list[float]]
+    mesh_location: list[list[float]]
     num_wheels: int
     wheel_width: float
     wheel_radius: float
@@ -45,7 +46,7 @@ def get_vehicle_data(gui_q, ):
 
         3: {'data': tkinter.StringVar(), 'default': '0.6', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_radius', 'name': 'Wheel Radius'},
-        4: {'data': tkinter.StringVar(), 'default': '0.2', 'max_v': 20.0, 'min_v': 0.1,
+        4: {'data': tkinter.StringVar(), 'default': '0.3', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_width', 'name': 'Wheel Width'},
         5: {'data': tkinter.StringVar(), 'default': '4', 'max_v': 16.0, 'min_v': 1.0,
             's_name': 'num_wheels', 'name': 'Number of wheels'}

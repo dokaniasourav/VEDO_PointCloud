@@ -17,6 +17,7 @@ from datetime import datetime
 import Global as Glb
 import Helper as HpF
 import Interface as Intf
+import LocalPlotter as LPlt
 
 
 # from tkinter import filedialog
@@ -82,6 +83,9 @@ def on_key_press(event):
 def enter_callback(event):
     global g_plot
     if not g_plot.initialized:
+        g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
+        g_plot.tracking_mode = False
+
         update_text('text1', '', [2, -2 * Glb.TEXT_SPACING, 5])
         update_text('text2', 'SlopeAVG and Tracking: OFF', [2, -3 * Glb.TEXT_SPACING, 5])
         update_text('text3', '', [2, -4 * Glb.TEXT_SPACING, 5])
@@ -213,14 +217,14 @@ def state_slope_avg(cpt):
     add_point(cpt, size=Glb.RD_2, col='red')
 
     if len(g_plot.current_points) == 1:
-        g_plot.tracking_mode = True             # TURN ON TRACKING
+        g_plot.tracking_mode = True  # TURN ON TRACKING
         print("Tracking turned ON")
         update_text('text2', 'SlopeAVG and Tracking: ON', )
         update_text('text4', 'Select 2nd point on map')
 
     elif len(g_plot.current_points) == 2:
-        g_plot.tracking_mode = False                # TURN OFF TRACKING
-        g_plot.plotter_mode = Glb.IDEAL_PLT_MODE    # Done with Slope mode
+        g_plot.tracking_mode = False  # TURN OFF TRACKING
+        g_plot.plotter_mode = Glb.IDEAL_PLT_MODE  # Done with Slope mode
         rem_all_trackers()
 
         update_text('text2', 'SlopeAVG: ON, Tracking: OFF')
@@ -252,7 +256,7 @@ def state_rectangle(cpt):
     add_point(cpt, size=Glb.RD_3, col='yellow', custom_text=f'{num_cur_points}_P')
 
     if num_cur_points == 1:
-        g_plot.tracking_mode = True             # Turn ON Tracking mode
+        g_plot.tracking_mode = True  # Turn ON Tracking mode
         print("Tracking is ON now ... ")
         update_text('text2', 'RectMode and Tracking: ON')
         update_text('text4', 'Select 2nd point on map')
@@ -338,8 +342,8 @@ def state_rectangle(cpt):
                 num_points += 1
                 for point in range(1, num_points):
                     new_center_point = HpF.add_points(
-                        HpF.mul_points(g_plot.current_points[4], point/num_points),
-                        HpF.mul_points(g_plot.current_points[3], (num_points - point)/num_points)
+                        HpF.mul_points(g_plot.current_points[4], point / num_points),
+                        HpF.mul_points(g_plot.current_points[3], (num_points - point) / num_points)
                     )
                     # new_center_point = (g_plot.current_points[4] * point +
                     #                     g_plot.current_points[3] * (num_points - point)) / num_points
@@ -482,15 +486,17 @@ def state_vehicle(cpt):
 
         ''' Wheel bottom mesh and vehicular body mesh '''
 
-        print('Current points are = ', g_plot.current_points)
-
         # 1. Specify the mesh position
-        g_plot.vehicle_data.positions = [cpt, cpt]
+        g_plot.vehicle_data.mesh_location = [cpt, cpt, cpt]
+        g_plot.vehicle_data.disp_location = [cpt, cpt, cpt]
         add_point(cpt, size=Glb.RD_4, col='purple', is_text=True, custom_text='Point A')
 
         # 2. Call the function for creating the 2 mesh objects
         g_plot.vehicle_data.vehicle_mesh = make_vehicle_mesh(g_plot.vehicle_data)
-        plt.add(g_plot.vehicle_data.vehicle_mesh)
+
+        plt.add(g_plot.vehicle_data.vehicle_mesh[Glb.VEHICLE_BOX_MESH])  # Add the box
+        plt.add(g_plot.vehicle_data.vehicle_mesh[Glb.FOUR_WHEEL_MESH])  # Add the wheels
+        # Not adding the bottom mesh
 
         # 3. Render the current plot
         plt.render()
@@ -505,16 +511,29 @@ def state_vehicle(cpt):
 
         # 1. Set tracking to false and stopping the track function from being called
         g_plot.tracking_mode = False
+        g_plot.gp_int_state = 0
+        rem_all_trackers()
         add_point(cpt, size=Glb.RD_4, col='purple', is_text=True, custom_text='Point B')
 
         # 2. Get the point list obtained from mouse clicks
         two_points = g_plot.current_points[0:]
         g_plot.current_points = []
-        list_of_points = get_point_list(two_points, 5)
+
+        ''' OPTION TO SELECT NO OF POINTS '''
+        root = tkinter.Tk()
+        root.withdraw()
+        num_points = int(tkinter.simpledialog.askinteger("Input a number",
+                                                         "Number of points on line",
+                                                         initialvalue=3,
+                                                         minvalue=1, maxvalue=1000
+                                                         ))
+        root.destroy()
+
+        list_of_points = get_point_list(two_points, num_points)
         for point in list_of_points:
             add_point(point, size=Glb.RD_3)
 
-        # Get the list of vehicles meshes made and set new position
+        # 3. Get the list of vehicles meshes made and set new position
         vehicle_meshes = g_plot.vehicle_data.vehicle_mesh
         move_mesh(vehicle_meshes, two_points[0])
         plt.render()
@@ -523,268 +542,318 @@ def state_vehicle(cpt):
         # whl_bottoms = wheel_bottom_mesh.points()
         # avg_wheel_bottom = HpF.avg_points(whl_bottoms)
         print('Angle = ', line_angle)
+        for i in range(0, int(line_angle)):
+            rotate_mesh(meshes=vehicle_meshes, angle=1, axis=[0, 0, 1],
+                        point=g_plot.vehicle_data.disp_location[0])
 
-        step_rot = 10
-        for i in range(0, int(360), step_rot):
-            rotate_mesh(meshes=vehicle_meshes, angle=step_rot, axis=[0, 0, 1], point=two_points[0])
+        whl_r = g_plot.vehicle_data.wheel_radius
+        veh_l = g_plot.vehicle_data.length
+        veh_b = g_plot.vehicle_data.back_overhang
+        veh_f = g_plot.vehicle_data.front_overhang
+        g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
+
+        #####################################################################################################
+
+        for sim_point1 in list_of_points:
+
+            # 1. Add a vertical offset put the vehicle down, this should be removed later
+            sim_point = HpF.add_points(sim_point1, [0, 0, 4])
+            print('Sim for ', sim_point)
+
+            # 2. Move the mesh to this location
+            move_mesh(meshes=vehicle_meshes, position=sim_point)
+
+            # 3. Get wheel bottom mesh points from vehicle mesh array
+            vehicle_box_mesh = vehicle_meshes[Glb.VEHICLE_BOX_MESH]
+            whl_bottom_mesh = vehicle_meshes[Glb.WHL_BOTTOM_MESH]
+            four_wheel_mesh = vehicle_meshes[Glb.FOUR_WHEEL_MESH]
+
+            whl_bottoms = whl_bottom_mesh.points()
+            print('Wheel bottoms = ', whl_bottoms)
+
+            # 4. Get the bottom intersection meshes using close point clouds
+            close_meshes = []
+            close_points = []
+            max_height = -1000
+            min_height = 10000
+            closest_wheel = 0
+
+            for wi, whl_bottom in enumerate(whl_bottoms):
+
+                # a) Finding the close point for all wheels
+                close_point = find_closest_point(whl_bottom)
+                close_points.append(close_point)
+                add_point(close_point, size=Glb.RD_4)
+
+                # b) Finding the ground height of all wheels
+                ground_height = HpF.sub_points(whl_bottom, close_point)[2]
+                # ground_height = HpF.dist_xyz([close_point, whl_bottom])
+                print(f'Z-dist {wi + 1} = {ground_height}, point = ', close_point)
+                if ground_height > max_height:
+                    max_height = ground_height
+                if ground_height < min_height:
+                    min_height = ground_height
+                    closest_wheel = wi
+
+                # c) Making the close point from cloud spheres of certain radius
+                close_mesh_points = cloud.closestPoint(close_point, radius=whl_r * 1.5)
+                mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
+                close_meshes.append(mesh_i)
+                plt.add(mesh_i)
+
+            # 5. Placing the vehicle on ground using translation in Z Axis
+
+            '''
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                First translate on Z Axis
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            '''
+            # Another faster way would be to just place vehicle on ground's closest point
+            print('Translation of vehicle along Z Axis ~')
+
+            move_down_by = min_height - 0.2
+            current_mesh_pos = g_plot.vehicle_data.disp_location[Glb.WHL_BOTTOM_MESH]
+            current_mesh_pos[2] -= move_down_by
+            move_mesh(vehicle_meshes, current_mesh_pos)
+
+            on_ground = []
+            move_down_by = 0.1024
+            accuracy_req = 0.0005
+
+            # 6. Get the current position of wheel bottom mesh
+            current_mesh_pos = g_plot.vehicle_data.disp_location[Glb.WHL_BOTTOM_MESH]
+            print('Translation of vehicle along Z Axis ~')
+            total_translation_dist = 0
+            while True:
+                # a) Check to see if loop isn't too far
+                if total_translation_dist > (max_height + whl_r):
+                    print('Translation has gone out of range')
+                    return
+
+                # b) Reduce the Z axis position
+                current_mesh_pos[2] -= move_down_by
+                move_mesh(vehicle_meshes, current_mesh_pos)
+                total_translation_dist += move_down_by
+
+                # c) Find out which wheel (if any) has touched the ground
+                for wi, close_mesh in enumerate(close_meshes):
+                    con_i = close_mesh.intersect_with(four_wheel_mesh)
+                    int_points = con_i.points()
+                    if len(int_points) > 0:
+                        on_ground.append(wi)
+                        break
+
+                # d) If they have, reduce move down amount until we get enough precision
+                if len(on_ground) > 0:
+                    if move_down_by <= accuracy_req:
+                        print('On ground = ', on_ground)
+                        break
+                    else:
+                        current_mesh_pos[2] += move_down_by
+                        move_mesh(vehicle_meshes, current_mesh_pos)
+                        total_translation_dist -= move_down_by
+                        move_down_by = move_down_by / 2.0
+                        on_ground = []
+            print('Moved down by ', total_translation_dist)
+
+            '''
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                Now rotate around that first touching wheel
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            '''
+            rot_index = [[0, 3], [1, 2], [2, 1], [3, 0]]
+            wheel_num = on_ground[0]
+            rot_axis = HpF.sub_points(whl_bottoms[rot_index[wheel_num][1]],
+                                      whl_bottoms[rot_index[wheel_num][0]])
+            per_axis = [1, 0 - (rot_axis[0] / rot_axis[1]), 0]
+            st_rot_angle = 1.024
+            rot_angle = st_rot_angle
+            '''
+                Dir testing of the Vehicle's rotation angle begins
+            '''
+            # Get initial distance
+            whl_bottoms = whl_bottom_mesh.points()
+            dist_before_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+                                                 close_points[rot_index[wheel_num][1]]])
+            # Test the rotation with the angle
+            rotate_mesh(vehicle_meshes, rot_angle, per_axis, whl_bottoms[wheel_num])
+            whl_bottoms = whl_bottom_mesh.points()
             plt.render()
-        # for i in range(0, 360):
-        #     vehicle_mesh.rotate(1, [0, 0, 1], two_points[0])
-        #     wheel_bottom_mesh.rotate(1, [0, 0, 1], two_points[0])
-        #     plt.render()
-        #
-        # whl_r = g_plot.vehicle_data.wheel_radius
-        # veh_l = g_plot.vehicle_data.length
-        # g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
-        #
-        # for sim_point1 in two_points:
-        #     sim_point = HpF.add_points(sim_point1, [0, 0, 10])
-        #     # print('Sim for ', sim_point)
-        #     # print('Vehicle pos = ', g_plot.vehicle_data.position)
-        #     vehicle_mesh.pos(HpF.sub_points(sim_point, g_plot.vehicle_data.position))
-        #     wheel_bottom_mesh.pos(HpF.sub_points(sim_point, g_plot.vehicle_data.position))
-        #     plt.render()
-        #     close_meshes = []
-        #     close_points = []
-        #     max_height = 0
-        #     ## Making the bottom intersection mesh
-        #     whl_bottoms = wheel_bottom_mesh.points()
-        #     # print('Wheel bottoms = ', whl_bottoms)
-        #     for wi, whl_bottom in enumerate(whl_bottoms):
-        #         close_point = find_closest_point(whl_bottom)
-        #         ground_height = HpF.dist_xyz([close_point, whl_bottom])
-        #         print(f'Dist {wi+1} = {ground_height}, point = ', close_point)
-        #         if ground_height > max_height:
-        #             max_height = ground_height
-        #         close_points.append(close_point)
-        #         add_point(close_point, size=Glb.RD_4)
-        #
-        #         close_mesh_points = cloud.closestPoint(close_point, radius=whl_r*1.5)
-        #         mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
-        #         close_meshes.append(mesh_i)
-        #         plt.add(mesh_i)
-        #
-        #
-        #     '''
-        #         Find the intersection with single wheel first
-        #     '''
-        #     on_ground = []
-        #     move_down_by = 0.4096
-        #     accuracy_req = 0.0003
-        #     new_whl_mesh_pos = vehicle_mesh.pos()
-        #     new_whl_bottom_pos = wheel_bottom_mesh.pos()
-        #     print('Translation of vehicle along Z Axis ')
-        #     total_translation_dist = 0
-        #     while True:
-        #         if total_translation_dist > (max_height + whl_r):
-        #             print('Translation out of range')
-        #             return
-        #         new_whl_mesh_pos[2] -= move_down_by
-        #         new_whl_bottom_pos[2] -= move_down_by
-        #         vehicle_mesh.pos(new_whl_mesh_pos)
-        #         wheel_bottom_mesh.pos(new_whl_bottom_pos)
-        #         total_translation_dist += move_down_by
-        #         plt.render()
-        #
-        #         for wi, close_mesh in enumerate(close_meshes):
-        #             con_i = close_mesh.intersectWith(vehicle_mesh)
-        #             con_i.c('blue')
-        #             int_points = con_i.points()
-        #             if len(int_points) > 0:
-        #                 on_ground.append(wi)
-        #                 break
-        #         if len(on_ground) > 0:
-        #             if move_down_by <= accuracy_req:
-        #                 print('On ground = ', on_ground)
-        #                 break
-        #             else:
-        #                 new_whl_mesh_pos[2] += move_down_by
-        #                 new_whl_bottom_pos[2] += move_down_by
-        #                 vehicle_mesh.pos(new_whl_mesh_pos)
-        #                 wheel_bottom_mesh.pos(new_whl_bottom_pos)
-        #                 total_translation_dist -= move_down_by
-        #                 move_down_by = move_down_by / 2.0
-        #                 on_ground = []
-        #
-        #     print('Moved down by ', total_translation_dist)
-        #     whl_bottoms = wheel_bottom_mesh.points()
-        #
-        #     '''
-        #         Now rotate around that first touching wheel
-        #     '''
-        #     rot_index = [[0, 3], [1, 2], [2, 1], [3, 0]]
-        #     wheel_num = on_ground[0]
-        #     rot_axis = HpF.sub_points(whl_bottoms[rot_index[wheel_num][1]],
-        #                               whl_bottoms[rot_index[wheel_num][0]])
-        #     per_axis = [1, 0 - (rot_axis[0] / rot_axis[1]), 0]
-        #     st_rot_angle = 1.024
-        #     rot_angle = st_rot_angle
-        #     '''
-        #         Dir testing of the Vehicle's rotation angle
-        #     '''
-        #     # Get initial distance
-        #     whl_bottoms = wheel_bottom_mesh.points()
-        #     dist_before_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
-        #                                          close_points[rot_index[wheel_num][1]]])
-        #     ## Test the rotation with the angle
-        #     vehicle_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
-        #     wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
-        #     whl_bottoms = wheel_bottom_mesh.points()
-        #     plt.render()
-        #
-        #     ## Re-calculate the distance and check
-        #     dist_after_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
-        #                                         close_points[rot_index[wheel_num][1]]])
-        #     if dist_after_rotation > dist_before_rotation:
-        #         rot_angle = 0 - rot_angle
-        #         print('Changed rotation direction')
-        #
-        #     rot_accu_req = 0.01
-        #     total_rotation = 0
-        #     print('Rotate around one wheel')
-        #     while True:
-        #         if abs(total_rotation) > 90:
-        #             print('Error in simulation')
-        #             return
-        #         whl_bottoms = wheel_bottom_mesh.points()
-        #         vehicle_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
-        #         wheel_bottom_mesh.rotate(rot_angle, per_axis, whl_bottoms[wheel_num])
-        #         total_rotation += rot_angle
-        #         plt.render()
-        #         # print(rot_angle, ' -- dist = ',
-        #         #       HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
-        #         #                     close_points[rot_index[wheel_num][1]]]))
-        #         for wi, close_mesh in enumerate(close_meshes):
-        #             if wi == wheel_num:
-        #                 continue
-        #             con_i = close_mesh.intersectWith(vehicle_mesh)
-        #             con_i.c('blue')
-        #             int_points = con_i.points()
-        #             if len(int_points) > 0:
-        #                 # print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
-        #                 on_ground.append(wi)
-        #                 break
-        #         if len(on_ground) > 1:
-        #             if abs(rot_angle) > rot_accu_req:
-        #                 whl_bottoms = wheel_bottom_mesh.points()
-        #                 vehicle_mesh.rotate(0 - rot_angle, per_axis, whl_bottoms[wheel_num])
-        #                 wheel_bottom_mesh.rotate(0 - rot_angle, per_axis, whl_bottoms[wheel_num])
-        #                 total_rotation -= rot_angle
-        #                 plt.render()
-        #                 rot_angle = rot_angle / 2.0
-        #                 on_ground = [wheel_num]
-        #             else:
-        #                 print('On ground = ', on_ground, ' total rotation = ', total_rotation)
-        #                 break
-        #
-        #     '''
-        #         And finally around two wheels
-        #     '''
-        #     rot_axis = HpF.sub_points(whl_bottoms[on_ground[0]],
-        #                               whl_bottoms[on_ground[1]])
-        #     rot_angle = st_rot_angle
-        #
-        #     rem_wheels = []
-        #     for i in range(0, 4):
-        #         if i not in on_ground:
-        #             rem_wheels.append(i)
-        #
-        #     # Get initial distance
-        #     whl_bottoms = wheel_bottom_mesh.points()
-        #
-        #     dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
-        #     dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
-        #     # print('D1 = ', dist_1, ' and D2 = ', dist_2)
-        #
-        #     ## Test the rotation with the angle
-        #     vehicle_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
-        #     wheel_bottom_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
-        #     whl_bottoms = wheel_bottom_mesh.points()
-        #     plt.render()
-        #
-        #     ## Re-calculate the distance and check
-        #     dist_11 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
-        #     dist_22 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
-        #     dist_111 = dist_1 - dist_11
-        #     dist_222 = dist_2 - dist_22
-        #     print('D1 diff = ', dist_111, ' and D2 diff = ', dist_222)
-        #
-        #     # Diagonal wheels possible are 0, 3 or 1, 2 which both sum to 3
-        #     if (rem_wheels[0] + rem_wheels[1]) != 3:
-        #         if dist_111 < 0 and dist_222 < 0:
-        #             rot_angle = 0 - rot_angle
-        #             print('Invert rot angle')
-        #
-        #     print('Rotate around 2 wheels ')
-        #     total_rotation = 0
-        #     while True:
-        #         if abs(total_rotation) > 90:
-        #             print('Error in simulation')
-        #             return
-        #         whl_bottoms = wheel_bottom_mesh.points()
-        #         vehicle_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
-        #         wheel_bottom_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
-        #         total_rotation += rot_angle
-        #         plt.render()
-        #         # dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
-        #         # dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
-        #         # print(rot_angle, ' -- dist = ', dist_1, dist_2)
-        #         for wi, close_mesh in enumerate(close_meshes):
-        #             if wi in on_ground:
-        #                 continue
-        #             con_i = close_mesh.intersectWith(vehicle_mesh)
-        #             con_i.c('blue')
-        #             int_points = con_i.points()
-        #             if len(int_points) > 0:
-        #                 # print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
-        #                 on_ground.append(wi)
-        #                 break
-        #         if len(on_ground) > 2:
-        #             if abs(rot_angle) > rot_accu_req:
-        #                 whl_bottoms = wheel_bottom_mesh.points()
-        #                 vehicle_mesh.rotate(0 - rot_angle, rot_axis, whl_bottoms[wheel_num])
-        #                 wheel_bottom_mesh.rotate(0 - rot_angle, rot_axis, whl_bottoms[wheel_num])
-        #                 total_rotation -= rot_angle
-        #                 plt.render()
-        #                 rot_angle = rot_angle / 2.0
-        #                 on_ground = [on_ground[0], on_ground[1]]
-        #             else:
-        #                 print('On ground = ', on_ground, ' total rotation = ', total_rotation)
-        #                 break
-        #
-        #     close_mesh_points = cloud.closestPoint(cpt, radius=veh_l*2)
-        #     mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
-        #     con_i = vehicle_mesh.intersectWith(mesh_i).c('red')
-        #     print(con_i.points())
-        #     plt.add(con_i)
 
-        move_mesh(meshes=vehicle_meshes, position=two_points[1])
+            # Re-calculate the distance and check
+            dist_after_rotation = HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+                                                close_points[rot_index[wheel_num][1]]])
+            if dist_after_rotation > dist_before_rotation:
+                rot_angle = 0 - rot_angle
+                print('Changed rotation direction')
+
+            ''' Rotate it back to original position '''
+            rotate_mesh(vehicle_meshes, 0 - rot_angle, per_axis, whl_bottoms[wheel_num])
+
+            rot_accu_req = 0.02
+            total_rotation = 0
+            print('Rotate around one wheel')
+            while True:
+                if abs(total_rotation) > 90:
+                    print('Error in simulation, rotate loop crossed bounds')
+                    return
+                whl_bottoms = whl_bottom_mesh.points()
+                rotate_mesh(vehicle_meshes, rot_angle, per_axis, whl_bottoms[wheel_num])
+                total_rotation += rot_angle
+                # print(rot_angle, ' -- dist = ',
+                #       HpF.dist_xyz([whl_bottoms[rot_index[wheel_num][1]],
+                #                     close_points[rot_index[wheel_num][1]]]))
+                for wi, close_mesh in enumerate(close_meshes):
+                    if wi == wheel_num:
+                        continue
+                    con_i = close_mesh.intersectWith(four_wheel_mesh)
+                    int_points = con_i.points()
+                    if len(int_points) > 0:
+                        on_ground.append(wi)
+                        break
+                if len(on_ground) > 1:
+
+                    ''' Debug Printing Intersections '''
+                    temp_arr = []
+                    for wi, close_mesh in enumerate(close_meshes):
+                        con_i = close_mesh.intersectWith(four_wheel_mesh)
+                        int_points = con_i.points()
+                        temp_arr.append(len(int_points))
+                    print('Int points = ', temp_arr)
+                    ''' END OF DEBUG '''
+
+                    if abs(rot_angle) > rot_accu_req:
+                        whl_bottoms = whl_bottom_mesh.points()
+                        rotate_mesh(vehicle_meshes, 0 - rot_angle, per_axis, whl_bottoms[wheel_num])
+                        total_rotation -= rot_angle
+                        rot_angle = rot_angle / 2.0
+                        on_ground = [wheel_num]
+                    else:
+                        print('On ground = ', on_ground, ' total rotation = ', total_rotation)
+                        break
+
+            '''
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                And finally we do rotation task around two wheels
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            '''
+            rot_axis = HpF.sub_points(whl_bottoms[on_ground[0]],
+                                      whl_bottoms[on_ground[1]])
+            rot_angle = st_rot_angle
+
+            rem_wheels = []
+            for i in range(0, 4):
+                if i not in on_ground:
+                    rem_wheels.append(i)
+
+            # Get initial distance
+            whl_bottoms = whl_bottom_mesh.points()
+            dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
+            dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
+            # print('D1 = ', dist_1, ' and D2 = ', dist_2)
+
+            # Test the rotation with the angle
+            rotate_mesh(vehicle_meshes, rot_angle, rot_axis, whl_bottoms[wheel_num])
+            # vehicle_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
+            # wheel_bottom_mesh.rotate(rot_angle, rot_axis, whl_bottoms[wheel_num])
+            # plt.render()
+
+            # Re-calculate the distance and check
+            whl_bottoms = whl_bottom_mesh.points()
+            dist_11 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
+            dist_22 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
+            dist_111 = dist_1 - dist_11
+            dist_222 = dist_2 - dist_22
+            print('D1 diff = ', dist_111, ' and D2 diff = ', dist_222)
+
+            # Diagonal wheels possible are 0, 3 or 1, 2 which both sum to 3
+            if (rem_wheels[0] + rem_wheels[1]) != 3:
+                if dist_111 < 0 and dist_222 < 0:
+                    rot_angle = 0 - rot_angle
+                    print('Invert rot angle')
+
+            ''' Rotate it back to original position '''
+            rotate_mesh(vehicle_meshes, 0 - rot_angle, rot_axis, whl_bottoms[wheel_num])
+
+            print('Rotate around 2 wheels ')
+            total_rotation = 0
+            while True:
+                if abs(total_rotation) > 90:
+                    print('Error in simulation')
+                    return
+                whl_bottoms = whl_bottom_mesh.points()
+                rotate_mesh(vehicle_meshes, rot_angle, rot_axis, whl_bottoms[wheel_num])
+                total_rotation += rot_angle
+                # dist_1 = HpF.dist_xyz([whl_bottoms[rem_wheels[0]], close_points[rem_wheels[0]]])
+                # dist_2 = HpF.dist_xyz([whl_bottoms[rem_wheels[1]], close_points[rem_wheels[1]]])
+                # print(rot_angle, ' -- dist = ', dist_1, dist_2)
+                for wi, close_mesh in enumerate(close_meshes):
+                    if wi in on_ground:
+                        continue
+                    con_i = close_mesh.intersectWith(four_wheel_mesh)
+                    con_i.c('blue')
+                    int_points = con_i.points()
+                    if len(int_points) > 0:
+                        # print('\n Found ', len(int_points), ' intersection points for wheel ', wi)
+                        on_ground.append(wi)
+                        break
+                if len(on_ground) > 2:
+                    ''' Debug Printing Intersections '''
+                    temp_arr = []
+                    for wi, close_mesh in enumerate(close_meshes):
+                        con_i = close_mesh.intersectWith(four_wheel_mesh)
+                        int_points = con_i.points()
+                        temp_arr.append(len(int_points))
+                    print('Int points = ', temp_arr)
+                    ''' END OF DEBUG '''
+
+                    if abs(rot_angle) > rot_accu_req:
+                        whl_bottoms = whl_bottom_mesh.points()
+                        rotate_mesh(vehicle_meshes, rot_angle, rot_axis, whl_bottoms[wheel_num])
+                        total_rotation -= rot_angle
+                        rot_angle = rot_angle / 2.0
+                        on_ground = [on_ground[0], on_ground[1]]
+                    else:
+                        print('On ground = ', on_ground, ' total rotation = ', total_rotation)
+                        break
+
+            print('End of simulation for ', sim_point1)
+
+            close_mesh_points = cloud.closestPoint(sim_point1, radius=(veh_l + veh_f + veh_b))
+            mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
+            con_i = vehicle_box_mesh.intersectWith(mesh_i).c('red')
+            if len(con_i.points()) > 0:
+                plt.add(con_i)
+                print('Found ', len(con_i.points()), ' points of intersections')
+
         plt.render()
 
 
 def move_mesh(meshes: list[vedo.Mesh], position: list[list[float]] or list[float]):
+    global g_plot, plt
+    for mi, mesh in enumerate(meshes):
+        if isinstance(position[0], list) and len(meshes) == len(position):
+            new_pos = HpF.sub_points(position[mi], g_plot.vehicle_data.mesh_location[mi])
+            g_plot.vehicle_data.disp_location[mi] = position[mi]
+        elif len(position) == 3:
+            new_pos = HpF.sub_points(position, g_plot.vehicle_data.mesh_location[mi])
+            g_plot.vehicle_data.disp_location[mi] = position
+        else:
+            print('Incorrect arguments for update position')
+            return
+        mesh.pos(new_pos)
 
-    global g_plot
-    if isinstance(position[0], list) and len(meshes) == len(position):
-        for mi, mesh in enumerate(meshes):
-            new_pos = HpF.sub_points(position[mi], g_plot.vehicle_data.positions[mi])
-            mesh.pos(new_pos)
-    elif len(position) == 3 and isinstance(position[0], list) is False:
-        for mi, mesh in enumerate(meshes):
-            new_pos = HpF.sub_points(position, g_plot.vehicle_data.positions[mi])
-            mesh.pos(new_pos)
-    else:
-        print('Incorrect arguments for update position')
+    plt.render()
 
 
 def rotate_mesh(meshes: list[vedo.Mesh], angle: float, axis: list[float], point: list[float]):
-    global g_plot
+    global g_plot, plt
 
     for mi, mesh in enumerate(meshes):
         mesh.rotate(angle=angle, axis=axis, point=point)
+        plt.render()
         new_pos = mesh.pos()
-        print('Pos after rotation = ', new_pos)
-        g_plot.vehicle_data.positions[mi] = HpF.add_points(g_plot.vehicle_data.positions[mi], new_pos)
+        g_plot.vehicle_data.mesh_location[mi] = HpF.sub_points(g_plot.vehicle_data.disp_location[mi], new_pos)
 
 
 # def state_vehicle_2(cpt):
@@ -824,6 +893,10 @@ def make_vehicle_mesh(vehicle_data: Intf.VehicleData) -> list[vedo.Mesh]:
         print('Invalid Vehicle Data Entry')
     ''' Amount of offset to be added when rendering the vehicle can be defined here '''
 
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    ''' Make the vehicle box object mesh '''
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
     first_time_offset = 2.0
     veh_l = vehicle_data.length
     veh_f = vehicle_data.front_overhang
@@ -833,95 +906,133 @@ def make_vehicle_mesh(vehicle_data: Intf.VehicleData) -> list[vedo.Mesh]:
     whl_r = vehicle_data.wheel_radius
     whl_w = vehicle_data.wheel_width
 
-    veh_x = vehicle_data.positions[0][0]
-    veh_y = vehicle_data.positions[0][1]
-    veh_z = vehicle_data.positions[0][2] + first_time_offset
+    veh_x = vehicle_data.mesh_location[Glb.VEHICLE_BOX_MESH][0]
+    veh_y = vehicle_data.mesh_location[Glb.VEHICLE_BOX_MESH][1]
+    veh_z = vehicle_data.mesh_location[Glb.VEHICLE_BOX_MESH][2] + first_time_offset
 
     box_end_points = [
-                    [veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # left, bottom
-                    [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # right, bottom
-                    [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r],  # left, top
-                    [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r]]  # right, top
+        [veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # left, bottom
+        [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # right, bottom
+        [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r],  # left, top
+        [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r]]  # right, top
 
-    connections = []
+    box_connect = []
     mesh_points = []
     bottom_x_adj = [-veh_b, veh_f, -veh_b, veh_f]
     for i in range(0, 4):
-        mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 - veh_h/2.0]))
+        mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 - veh_h / 2.0]))
 
     txt_obj = []
+    adj_text_pos = [veh_w/8.0, veh_w/8.0, -veh_w/8.0, -veh_w/8.0]
     for i in range(0, 4):
         mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 + veh_h / 2.0]))
-        txt_obj.append(vedo.Text3D(txt=f'{i + 1}_whl', s=0.3,
-                                   pos=HpF.add_points(box_end_points[i], [0, 0, whl_r+0.1])))
+        txt_obj.append(vedo.Text3D(txt=f'{i + 1}_whl', s=0.3, depth=1.0,
+                                   pos=HpF.add_points(box_end_points[i], [0, adj_text_pos[i], 0.3])))
 
-    # num_pts = 60
-    # for wi, whl_center in enumerate(box_end_points):
-    #     side_angle = 0  # np.pi / 4
-    #     whl_y_off = [-whl_h, -whl_h, whl_h, whl_h]
-    #     for i in range(0, num_pts):
-    #         ang = 360 / num_pts * i * np.pi / 180
-    #         whl_rim_point_1 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
-    #                            whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle),
-    #                            whl_center[2] + whl_r * np.math.sin(ang)]
-    #         whl_rim_point_2 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
-    #                            whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) + whl_y_off[wi],
-    #                            whl_center[2] + whl_r * np.math.sin(ang)]
-    #         whl_points.append(whl_rim_point_1)
-    #         whl_points.append(whl_rim_point_2)
-    #         connections.append([(i * 2 + 0) % (num_pts * 2) + wi * num_pts * 2,
-    #                             (i * 2 + 1) % (num_pts * 2) + wi * num_pts * 2,
-    #                             (i * 2 + 2) % (num_pts * 2) + wi * num_pts * 2])
-    #         connections.append([(i * 2 + 1) % (num_pts * 2) + wi * num_pts * 2,
-    #                             (i * 2 + 2) % (num_pts * 2) + wi * num_pts * 2,
-    #                             (i * 2 + 3) % (num_pts * 2) + wi * num_pts * 2])
-            # plt.add(vedo.Cylinder(whl_center, r=whl_r, height=whl_h, axis=(0, 1, 0)))
-    # whl_points.extend(mesh_points)
-    # offset = 4 * num_pts * 2
+    box_center_top = HpF.avg_points(mesh_points[4:])
+    txt_obj.append(
+        vedo.Text3D(txt='FRONT', s=0.3, depth=1.0,
+                    pos=HpF.avg_points([mesh_points[4], mesh_points[6],
+                                        mesh_points[4], mesh_points[6],
+                                        box_center_top]))
+    )
+    txt_obj.append(
+        vedo.Text3D(txt='BACK', s=0.3, depth=1.0,
+                    pos=HpF.avg_points([mesh_points[5], mesh_points[7],
+                                        # mesh_points[5], mesh_points[7],
+                                        box_center_top]))
+    )
 
     offset = 0
-    ''' Extend box coordinates to make the box mesh '''
-    connections.extend([
-        [offset + 0, offset + 1, offset + 2],
+    ''' Extend box coordinates to make the box mesh 
+        6 Faces equal 12 triangles
+    '''
+    box_connect.extend([
+        [offset + 0, offset + 1, offset + 2],   # Bottom Rectangle - 0, 1, 2, 3
         [offset + 1, offset + 2, offset + 3],
 
-        [offset + 0, offset + 2, offset + 4],
+        [offset + 0, offset + 2, offset + 4],   # Front Rectangle
         [offset + 2, offset + 4, offset + 6],
 
-        [offset + 0, offset + 1, offset + 4],
+        [offset + 0, offset + 1, offset + 4],   # Left Rectangle
         [offset + 1, offset + 4, offset + 5],
 
-        [offset + 4, offset + 5, offset + 6],
+        [offset + 4, offset + 5, offset + 6],   # Top Rectangle
         [offset + 5, offset + 6, offset + 7],
 
-        [offset + 2, offset + 3, offset + 6],
+        [offset + 2, offset + 3, offset + 6],   # Right Rectangle
         [offset + 3, offset + 6, offset + 7],
 
-        [offset + 1, offset + 3, offset + 5],
+        [offset + 1, offset + 3, offset + 5],   # Back Rectangle
         [offset + 3, offset + 5, offset + 7]
     ])
 
-    ''' Wheel mesh object along with vehicle object '''
-    vehicle_mesh = vedo.Mesh([mesh_points, connections])
+    vehicle_mesh = vedo.Mesh([mesh_points, box_connect])
     vehicle_mesh.backcolor('orange4').color('orange').linecolor('black').linewidth(1)
 
-    # Making the four wheel meshes
-    veh_x = vehicle_data.positions[1][0]
-    veh_y = vehicle_data.positions[1][1]
-    veh_z = vehicle_data.positions[1][2] + first_time_offset
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    ''' Make the Four Wheel mesh object for the vehicle now '''
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+    veh_x = vehicle_data.mesh_location[Glb.FOUR_WHEEL_MESH][0]
+    veh_y = vehicle_data.mesh_location[Glb.FOUR_WHEEL_MESH][1]
+    veh_z = vehicle_data.mesh_location[Glb.FOUR_WHEEL_MESH][2] + first_time_offset
 
     # Not ignoring the wheel width effect
-    whl_centers = [[veh_x - veh_l / 2.0, veh_y - (veh_w/2.0 - whl_w/2.0), veh_z + whl_r],  # left, bottom
-                   [veh_x + veh_l / 2.0, veh_y - (veh_w/2.0 - whl_w/2.0), veh_z + whl_r],  # right, bottom
-                   [veh_x - veh_l / 2.0, veh_y + (veh_w/2.0 + whl_w/2.0), veh_z + whl_r],  # left, top
-                   [veh_x + veh_l / 2.0, veh_y + (veh_w/2.0 + whl_w/2.0), veh_z + whl_r]]  # right, top
+    whl_centers = [[veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, bottom
+                   [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # right, bottom
+                   [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, top
+                   [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r]]  # right, top
 
+    num_pts = 90
+    whl_y_off = [-whl_w / 2.0, -whl_w / 2.0, whl_w / 2.0, whl_w / 2.0]
     wheel_meshes = []
     for wi, whl_center in enumerate(whl_centers):
-        wheel_mesh = vedo.Cylinder(pos=whl_center, r=whl_r, height=whl_w, axis=[0, 1, 0], res=24)
+        side_angle = 0  # np.pi / 4
+        wheel_points = []
+        whl_connects = []
+        for i in range(0, num_pts):
+            ang = (360/num_pts) * i * (np.pi/180)
+            whl_rim_point_1 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
+                               whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) - whl_y_off[wi],
+                               whl_center[2] + whl_r * np.math.sin(ang)]
+            whl_rim_point_2 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
+                               whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) + whl_y_off[wi],
+                               whl_center[2] + whl_r * np.math.sin(ang)]
+            wheel_points.append(whl_rim_point_1)
+            wheel_points.append(whl_rim_point_2)
+            whl_connects.append([(i * 2 + 0) % (num_pts * 2),
+                                (i * 2 + 1) % (num_pts * 2),
+                                (i * 2 + 2) % (num_pts * 2)])
+            whl_connects.append([(i * 2 + 1) % (num_pts * 2),
+                                (i * 2 + 2) % (num_pts * 2),
+                                (i * 2 + 3) % (num_pts * 2)])
+
+        wheel_mesh = vedo.Mesh([wheel_points, whl_connects])
+        wheel_mesh.backcolor('green2').color('purple').linecolor('white').linewidth(1)
         wheel_meshes.append(wheel_mesh)
 
-    return [vedo.merge(vehicle_mesh, txt_obj), vedo.merge(wheel_meshes)]
+    # wheel_meshes = []
+    # for wi, whl_center in enumerate(whl_centers):
+    #     wheel_mesh = vedo.Cylinder(pos=whl_center, r=whl_r, height=whl_w, axis=[0, 1, 0], res=24)
+    #     wheel_meshes.append(wheel_mesh)
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    ''' Making the wheel bottom points Mesh object '''
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    veh_x = vehicle_data.mesh_location[Glb.WHL_BOTTOM_MESH][0]
+    veh_y = vehicle_data.mesh_location[Glb.WHL_BOTTOM_MESH][1]
+    veh_z = vehicle_data.mesh_location[Glb.WHL_BOTTOM_MESH][2] + first_time_offset
+
+    whl_bottoms = [[veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z],  # left, bottom
+                   [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z],  # right, bottom
+                   [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z],  # left, top
+                   [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z]]  # right, top
+
+    wb_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]])
+    wb_mesh.linecolor('yellow')
+
+    return [vedo.merge(vehicle_mesh, txt_obj), vedo.merge(wheel_meshes), wb_mesh]
 
 
 def mouse_track(event):
@@ -945,7 +1056,6 @@ def mouse_track(event):
             add_ruler([g_plot.current_points[0], close_mouse_point], width=3, col='yellow', size=Glb.TEXT_SIZE)
             move_mesh(g_plot.vehicle_data.vehicle_mesh, mouse_point)
             plt.render()
-
 
     # For normal sloping related calculations #
     # Same functionality in len(g_plot.current_points) == 1 statement
@@ -1009,7 +1119,7 @@ def add_point(pos: list[float], size=Glb.RD_2, col='red', silent=True, is_text=F
 def add_text(text: str, pos: list[float], silent=True, size=1.0, col='floralwhite', keep=True):
     global g_plot
     pos[2] += 1
-    new_txt = vedo.Text3D(txt=text, s=size, pos=pos, depth=0.1, alpha=1.0, c=col)
+    new_txt = vedo.Text3D(txt=text, s=size, pos=pos, depth=0.5, alpha=1.0, c=col)
     plt.add([new_txt])
     if keep:
         g_plot.plotted_texts.append(new_txt)
@@ -1277,8 +1387,8 @@ def my_camera_reset():
 
 def rem_all_trackers():
     global g_plot, plt
-    for line in g_plot.plotted_trackers:
-        plt.remove(line)
+    for tracker in g_plot.plotted_trackers:
+        plt.remove(tracker)
     g_plot.plotted_trackers = []
 
 
@@ -1301,11 +1411,13 @@ def button_func():
     print('Pressed')
 
 
+''' Global variables part 2'''
 vedo.settings.enable_default_keyboard_callbacks = False
 plt = vedo.Plotter(pos=[0, 0], size=[800, 1080])
 temp_file = open('temp_file', mode='w+')
 temp_file.close()
 cloud = vedo.load('temp_file')
+''' End of global variables part 2'''
 
 
 def plt_main(inp_q, out_q):
@@ -1455,36 +1567,8 @@ def find_closest_point(point: list[float], num_retry=60, dist_threshold=0.2, agg
     return closest_pt_yet
 
 
-class LocalPlotter:
-    plotter_mode = Glb.IDEAL_PLT_MODE
-    tracking_mode = False
-    initialized = False
-    min_xyz: []
-    max_xyz: []
-    geo_xyz: []
-    cloud_center: []
-    cam_center: []
-    scale_f = 1.0
-    last_key_press = None
-    smooth_factor = 0
-    inp_q: multiprocessing.Queue
-    out_q: multiprocessing.Queue
-    gui_q: multiprocessing.Queue
-    timerID = None
-    current_points:list[list[float]] = []
-    plotted_trackers = []
-    plotted_points = []
-    plotted_lines = []
-    plotted_texts = []
-    rect_points = []
-    show_ele_list = []
-    vehicle = vedo.Box()
-    gp_int_state = 0
-    vehicle_data = Intf.VehicleData()
-
-
 ''' All the global variables declared '''
-g_plot = LocalPlotter()
+g_plot = LPlt.LocalPlotter()
 text_objects = {
 }
 all_tasks = {
