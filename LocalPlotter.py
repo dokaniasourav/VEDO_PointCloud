@@ -26,6 +26,5 @@ class LocalPlotter:
     plotted_texts = []
     rect_points = []
     show_ele_list = []
-    vehicle = vedo.Box()
     gp_int_state = 0
-    vehicle_data = Intf.VehicleData()
+    mesh_objects: Intf.AllMeshObjects

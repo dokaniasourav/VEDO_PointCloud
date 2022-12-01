@@ -1,29 +1,119 @@
 import multiprocessing
 import tkinter
 import time
+import copy
 import sys
 import os
 
 import tkinter.filedialog
-
 import vedo
+
+import Helper as HpF
+
+
+class MeshObject:
+    mesh: vedo.Mesh
+    name: str
+    rotation: list[float]
+    disp_location: list[float]
+    mesh_location: list[float]
+
+    def __init__(self, name: str, pos: list[float]):
+        self.name = name
+        self.rotation = [0.0, 0.0, 0.0]
+        self.disp_location = copy.copy(pos)
+        self.mesh_location = copy.copy(pos)
+
+    def move(self, position: list[float]):
+        if len(position) == 3:
+            self.disp_location = position
+            new_pos = HpF.sub_points(position, self.mesh_location)
+            self.mesh.pos(new_pos)
+        else:
+            raise ValueError('Incorrect arguments for update position')
+
+    def rotate(self, angle: float, axis: list[float], point: list[float]):
+        if len(axis) == len(point) == 3:
+            self.mesh.rotate(angle=angle, axis=axis, point=point)
+            self.mesh_location = HpF.sub_points(self.disp_location, self.mesh.pos())
+        else:
+            raise ValueError('Invalid dimensions for either angle, axis or point')
 
 
 class VehicleData:
     width: float
     length: float
     height: float
-    disp_location: list[list[float]]
-    mesh_location: list[list[float]]
     num_wheels: int
     wheel_width: float
     wheel_radius: float
     back_overhang: float
     front_overhang: float
-    path_points = list[float]
-    path_lines = list[float]
-    vehicle_mesh: list[vedo.Mesh]
-    bottom_mesh: vedo.Mesh
+    # disp_location: list[list[float]]
+    # mesh_location: list[list[float]]
+    # mesh_rotation: list[float]
+    # path_points = list[float]
+    # path_lines = list[float]
+    # vehicle_mesh: list[vedo.Mesh]
+
+
+class AllMeshObjects:
+    data: VehicleData
+    total: int
+    meshes: dict[int, MeshObject]
+
+    def __init__(self, data: VehicleData):
+        self.data = data
+        self.total = 0
+
+    def add_mesh_obj(self, id_num: int, mesh_obj: MeshObject):
+        if hasattr(self, 'meshes'):
+            self.meshes[id_num] = mesh_obj
+        else:
+            self.meshes = dict({
+                id_num: mesh_obj
+            })
+        self.total += 1
+
+    def add_mesh(self, id_num: int, mesh: vedo.Mesh):
+        self.meshes[id_num].mesh = mesh
+
+    def get_mesh(self, id_num: int):
+        if id_num in self.meshes.keys():
+            return self.meshes[id_num].mesh
+        else:
+            print('Mesh object not found')
+            return None
+
+    def get_display_loc(self, id_num: int):
+        return self.meshes[id_num].disp_location
+
+    def get_mesh_location(self, id_num: int):
+        return self.meshes[id_num].mesh_location
+
+    def get_points(self, id_num: int):
+        if id_num in self.meshes.keys():
+            return self.meshes[id_num].mesh.points()
+        else:
+            print('Mesh object not found')
+            return None
+
+    def move(self, id_num: int, position: list[float]):
+        self.meshes[id_num].move(position)
+
+    def rotate(self, id_num: int, angle: float, axis: list[float], point: list[float]):
+        self.meshes[id_num].rotate(angle, axis, point)
+
+    def move_all(self, position: list[float]):
+        for id_num in self.meshes.keys():
+            self.meshes[id_num].move(position)
+
+    def rotate_all(self, angle: float, axis: list[float], point: list[float]):
+        for id_num in self.meshes.keys():
+            self.meshes[id_num].rotate(angle, axis, point)
+
+    def add_to_plot(self, plt: vedo.Plotter, id_num: int):
+        plt.add(self.meshes[id_num].mesh)
 
 
 def get_vehicle_data(gui_q, ):

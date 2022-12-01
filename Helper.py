@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def dist_xyz(points):
+def dist_xyz(points: list[list[float]]):
     if len(points[0]) != 3 or len(points[1]) != 3:
         print('Bad Value of pt in dist_xyz')
         return None
@@ -11,7 +11,7 @@ def dist_xyz(points):
                         (points[0][2] - points[1][2]) ** 2)
 
 
-def dist_xy(points):
+def dist_xy(points: list[list[float]]):
     if len(points[0]) < 2 or len(points[1]) < 2:
         print('Bad Value of pt in dist_xy')
         return None
@@ -20,36 +20,32 @@ def dist_xy(points):
                         (points[0][1] - points[1][1]) ** 2)
 
 
-def get_xy_angle(points, no_change=False):
+def get_xy_angle(points: list[list[float]], no_change=False):
     yy_diff = points[1][1] - points[0][1]
     xx_diff = points[1][0] - points[0][0]
     angle_measure = np.math.acos(xx_diff / dist_xy(points)) * (180 / np.pi)
-    if no_change:
-        return angle_measure
 
-    if yy_diff < 0:
-        return 360 - angle_measure
-    else:
+    if no_change or yy_diff >= 0:
         return angle_measure
+    else:
+        return 360 - angle_measure
     # return angle_measure
 
 
-def get_z_angle(points, no_change=False):
+def get_z_angle(points: list[list[float]], no_change=False):
     xy_dist = dist_xy(points)
     xyz_dist = dist_xyz(points)
     zz_diff = points[1][2] - points[0][2]
     angle_measure = np.math.acos(xy_dist / xyz_dist) * (180 / np.pi)
-    if no_change:
+    if no_change or zz_diff >= 0:
         return angle_measure
-
-    if zz_diff < 0:
-        return 360 - angle_measure
     else:
-        return angle_measure
+        return 360 - angle_measure
+
     # return angle_measure
 
 
-def get_slope(point1, point2):
+def get_slope(point1: list[float], point2: list[float]):
     xy_dist = dist_xy([point1, point2])
     zz_dist = (point2[2] - point1[2])
     if xy_dist < 0.001:
