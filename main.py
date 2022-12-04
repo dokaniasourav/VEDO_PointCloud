@@ -38,7 +38,7 @@ def on_key_press(event):
             plt.remove(p_trac, render=True)
         for p_line in g_plot.plotted_lines:
             plt.remove(p_line, render=True)
-        for p_text in g_plot.plotted_lines:
+        for p_text in g_plot.plotted_texts:
             plt.remove(p_text, render=True)
         plt.sliders = g_plot.current_points = []
         g_plot.plotted_trackers = []
@@ -467,7 +467,7 @@ def state_rectangle(cpt):
 
 
 def state_vehicle(cpt):
-    global g_plot
+    global g_plot, cloud
 
     ''' Only called when initializing for the first time from a key press = V'''
     if g_plot.gp_int_state == 0:
@@ -480,9 +480,8 @@ def state_vehicle(cpt):
 
         # End of parallel task
         new_window.join()
-        vehicle_data: Intf.VehicleData
         if not g_plot.out_q.empty():
-            vehicle_data = g_plot.out_q.get()
+            vehicle_data: Intf.VehicleData = g_plot.out_q.get()
             vehicle_data.height = vehicle_data.wheel_radius / 2.0
             g_plot.mesh_objects = Intf.AllMeshObjects(vehicle_data)
         else:
@@ -498,24 +497,36 @@ def state_vehicle(cpt):
         vehicle_box_mesh = Intf.MeshObject('Vehicle Box', cpt)
         wheel_mesh_f = Intf.MeshObject('Wheel Front', cpt)
         wheel_mesh_b = Intf.MeshObject('Wheel Back', cpt)
-        wheel_bottom = Intf.MeshObject('Vehicle Bottom', cpt)
+        wheel_bottoms = Intf.MeshObject('Vehicle Bottom', cpt)
+        # wheel_centers = Intf.MeshObject('Wheel Centers', cpt)
+        wheel_centers_f = Intf.MeshObject('Wheel Centers Front', cpt)
+        wheel_centers_b = Intf.MeshObject('Wheel Centers Backs', cpt)
 
+        # 1. Add them to the global mesh object
         g_plot.mesh_objects.add_mesh_obj(Glb.VEHICLE_BOX_MESH, vehicle_box_mesh)
         g_plot.mesh_objects.add_mesh_obj(Glb.WHEEL_MESH_F, wheel_mesh_f)
         g_plot.mesh_objects.add_mesh_obj(Glb.WHEEL_MESH_B, wheel_mesh_b)
-        g_plot.mesh_objects.add_mesh_obj(Glb.WHL_BOTTOM_MESH, wheel_bottom)
+        g_plot.mesh_objects.add_mesh_obj(Glb.WHL_BOTTOM_MESH, wheel_bottoms)
+        # g_plot.mesh_objects.add_mesh_obj(Glb.WHL_CENTER_MESH, wheel_centers)
+        g_plot.mesh_objects.add_mesh_obj(Glb.WHL_CENTER_MESH_F, wheel_centers_f)
+        g_plot.mesh_objects.add_mesh_obj(Glb.WHL_CENTER_MESH_B, wheel_centers_b)
 
+        # 3. Debug point on map
         add_point(cpt, size=Glb.RD_4, col='purple', is_text=True, custom_text='Point A')
 
-        # 2. Call the function for creating the 2 mesh objects
-        make_vehicle_mesh(g_plot.mesh_objects)
+        # 4. Call the function for creating all the required mesh objects
+        make_vehicle_mesh(g_plot.mesh_objects,
+                          [Glb.VEHICLE_BOX_MESH,
+                           Glb.WHEEL_MESH_F])
 
         g_plot.mesh_objects.add_to_plot(plt, Glb.VEHICLE_BOX_MESH)           # Add the box
         g_plot.mesh_objects.add_to_plot(plt, Glb.WHEEL_MESH_F)               # Add front wheels
         g_plot.mesh_objects.add_to_plot(plt, Glb.WHEEL_MESH_B)               # Add back wheels
-        # plt.add(g_plot.mesh_objects.get_mesh(Glb.WHL_BOTTOM_MESH))      # Add bottom point mesh
+        g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_BOTTOM_MESH)            # Add vehicle bottom mesh
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_CENTER_MESH)            # Add vehicle bottom mesh
+        g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_CENTER_MESH_F)          # Add center front mesh
+        g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_CENTER_MESH_B)          # Add center back mesh
 
-        # 3. Render the current plot
         plt.render()
         print('Add a second point to track the vehicle')
 
@@ -536,17 +547,17 @@ def state_vehicle(cpt):
         two_points = g_plot.current_points[0:]
         g_plot.current_points = []
 
-        num_points = 20
-        # ''' OPTION TO SELECT NO OF POINTS '''
-        # root = tkinter.Tk()
-        # root.withdraw()
-        # num_points = int(tkinter.simpledialog.askinteger("Input a number",
-        #                                                  "Number of points on line",
-        #                                                  initialvalue=3,
-        #                                                  minvalue=1, maxvalue=1000
-        #                                                  ))
-        # root.destroy()
-        # ''' END OF OPTIONS MENU CODE '''
+        num_points = 3
+        ''' OPTION TO SELECT NO OF POINTS '''
+        root = tkinter.Tk()
+        root.withdraw()
+        num_points = int(tkinter.simpledialog.askinteger("Input a number",
+                                                         "Number of points on line",
+                                                         initialvalue=3,
+                                                         minvalue=1, maxvalue=1000
+                                                         ))
+        root.destroy()
+        ''' END OF OPTIONS MENU CODE '''
 
         list_of_points = get_point_list(two_points, num_points)
         for point in list_of_points:
@@ -570,18 +581,18 @@ def state_vehicle(cpt):
 
         #####################################################################################################
 
-        for sim_point1 in list_of_points:
+        for pi, sim_point1 in enumerate(list_of_points):
 
             # 1. Provide some vertical offset in the beginning
             sim_point = HpF.add_points(sim_point1, [0, 0, 1])
-            print('Sim for ', sim_point)
+            print(pi, ' sim point = ', sim_point, end=' ')
 
             # 2. Move the mesh to this location
             g_plot.mesh_objects.move_all(position=sim_point)
             plt.render()
 
             bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
-            print('Bottom points = ', bottom_points_v)
+            # print('Bottom points = ', bottom_points_v)
 
             # 4. Get the bottom intersection meshes using close point clouds
             close_ground_points: list[list[float]] = []
@@ -594,8 +605,8 @@ def state_vehicle(cpt):
                 # a) Finding the close point for all wheels
                 close_point = find_closest_point(whl_bottom)
                 close_ground_points.append(close_point)
-                add_point(close_point, size=Glb.RD_4, col='skyblue', custom_text=f'{wi}_w')
-                add_line([close_point, whl_bottom], col='green')
+                # add_point(close_point, size=Glb.RD_4, col='skyblue')
+                # add_line([close_point, whl_bottom], col='green')
 
                 # b) Finding the ground height of all wheels
                 ground_height = HpF.sub_points(whl_bottom, close_point)[2]
@@ -608,8 +619,8 @@ def state_vehicle(cpt):
 
                 # c) Making the close point from cloud spheres of certain radius
                 close_mesh_points = cloud.closestPoint(close_point, radius=whl_r * 1.5)
-                mesh_i = vedo.delaunay2d(close_mesh_points).c('pink')
-                close_ground_meshes.append(mesh_i)
+                close_ground_mesh = vedo.delaunay2d(close_mesh_points).c('pink')
+                close_ground_meshes.append(close_ground_mesh)
                 # plt.add(mesh_i)
                 plt.render()
 
@@ -628,27 +639,28 @@ def state_vehicle(cpt):
             center_pos_g = HpF.avg_points([mid_axle_point_gf, mid_axle_point_gb])
             add_point(pos=center_pos_g, size=Glb.RD_4, col='pink')
 
-            # d) Place the entire vehicle on ground
+            # d) Place the entire vehicle on the center position
             g_plot.mesh_objects.move_all(position=center_pos_g)
 
             bottom_points_v = g_plot.mesh_objects.get_points(id_num=Glb.WHL_BOTTOM_MESH)
+            center_points_vf = g_plot.mesh_objects.get_points(id_num=Glb.WHL_CENTER_MESH_F)
+            center_points_vb = g_plot.mesh_objects.get_points(id_num=Glb.WHL_CENTER_MESH_B)
 
-            mid_axle_point_vf = HpF.avg_points([bottom_points_v[0], bottom_points_v[2]])
-            mid_axle_point_vb = HpF.avg_points([bottom_points_v[1], bottom_points_v[3]])
+            mid_axle_point_vf = HpF.avg_points(center_points_vf)
+            mid_axle_point_vb = HpF.avg_points(center_points_vb)
+            mid_side_point_vl = HpF.avg_points([center_points_vf[0], center_points_vb[0]])
+            mid_side_point_vr = HpF.avg_points([center_points_vf[1], center_points_vb[1]])
+            center_pos_v = HpF.avg_points([mid_axle_point_vf, mid_axle_point_vb])
 
-            mid_side_point_vf = HpF.avg_points([bottom_points_v[0], bottom_points_v[1]])
-            mid_side_point_vb = HpF.avg_points([bottom_points_v[2], bottom_points_v[3]])
-
-            center_pos_v = HpF.avg_points(bottom_points_v)
-
-            short_axis_v = HpF.sub_points(mid_side_point_vf, mid_side_point_vb)
+            short_axis_v = HpF.sub_points(mid_side_point_vl, mid_side_point_vr)
             loong_axis_v = HpF.sub_points(mid_axle_point_vf, mid_axle_point_vb)
 
             # h) Find the angle and axis between front and back wheels
             long_angle_v = HpF.get_z_angle([mid_axle_point_vf, mid_axle_point_vb])
+
             long_angle_g = HpF.get_z_angle([mid_axle_point_gf, mid_axle_point_gb])
 
-            side_angle_v = HpF.get_z_angle([mid_side_point_vf, mid_side_point_vb])
+            side_angle_v = HpF.get_z_angle([mid_side_point_vl, mid_side_point_vr])
 
             axle_angles_gf = 0-HpF.get_z_angle([close_ground_points[0], close_ground_points[2]])
             axle_angles_gb = 0-HpF.get_z_angle([close_ground_points[1], close_ground_points[3]])
@@ -671,7 +683,6 @@ def state_vehicle(cpt):
             g_plot.mesh_objects.rotate_all(angle=long_angle_g - long_angle_v,
                                            axis=short_axis_v, point=center_pos_g)
 
-            bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
 
             # add_line(bottom_points_v[0:2], col='yellow')
             # add_line(bottom_points_v[2:4], col='yellow')
@@ -679,12 +690,13 @@ def state_vehicle(cpt):
             # add_line([bottom_points_v[1], bottom_points_v[3]], col='yellow')
 
             wheel_meshes = [Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B, Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B]
-            num_int_points = []
-            for mi, close_ground_mesh in enumerate(close_ground_meshes):
-                intersection = close_ground_mesh.intersect_with(
-                    g_plot.mesh_objects.get_mesh(id_num=wheel_meshes[mi]))
-                num_int_points.append(len(intersection.points()))
-            print('Num int points for = ', num_int_points)
+
+            # num_int_points = []
+            # for mi, close_ground_mesh in enumerate(close_ground_meshes):
+            #     intersection = close_ground_mesh.intersect_with(
+            #         g_plot.mesh_objects.get_mesh(id_num=wheel_meshes[mi]))
+            #     num_int_points.append(len(intersection.points()))
+            # print(' Int point = ', num_int_points)
 
             axle_angle_df = axle_angles_gf - axle_angles_vf
             axle_angle_db = axle_angles_gb - axle_angles_vb
@@ -715,7 +727,17 @@ def state_vehicle(cpt):
                 intersection = close_ground_mesh.intersect_with(
                     g_plot.mesh_objects.get_mesh(id_num=wheel_meshes[mi]))
                 num_int_points.append(len(intersection.points()))
-            print('Num int points for = ', num_int_points)
+            print(' Int point = ', num_int_points)
+
+            bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
+
+            for b_point in bottom_points_v:
+                c_point = HpF.add_points(b_point, [0, 0, whl_r])
+                n_point = cloud.closest_point(c_point)
+                print('Dist = ', HpF.dist_xyz([c_point, n_point]) - whl_r)
+                add_line(points=[c_point, n_point], col='white')
+                add_point(c_point, size=Glb.RD_4, col='red')
+                add_point(n_point, size=Glb.RD_4, col='red')
 
         #
         #     '''
@@ -1059,16 +1081,15 @@ def state_vehicle(cpt):
 #     plt.render()
 
 
-def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects) -> Intf.AllMeshObjects:
+def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects, mesh_ids: list[int]) -> Intf.AllMeshObjects:
     if not mesh_objects:
         print('Invalid Vehicle Data Entry')
     ''' Amount of offset to be added when rendering the vehicle can be defined here '''
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-    ''' Make the vehicle box object mesh '''
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
+    # Historical constant
     first_time_offset = 0.0
+
+    # This is the global mesh data from the GUI
     veh_l = mesh_objects.data.length
     veh_f = mesh_objects.data.front_overhang
     veh_b = mesh_objects.data.back_overhang
@@ -1077,159 +1098,188 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects) -> Intf.AllMeshObjects:
     whl_r = mesh_objects.data.wheel_radius
     whl_w = mesh_objects.data.wheel_width
 
-    mesh_location_1 = mesh_objects.get_display_loc(Glb.VEHICLE_BOX_MESH)
-    veh_x = mesh_location_1[0]
-    veh_y = mesh_location_1[1]
-    veh_z = mesh_location_1[2] + first_time_offset
+    for mesh_id in mesh_ids:
 
-    box_end_points = [
-        [veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # left, bottom
-        [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # right, bottom
-        [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r],  # left, top
-        [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r]]  # right, top
+        if mesh_id == Glb.VEHICLE_BOX_MESH:
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+            ''' Make the vehicle box object mesh '''
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+            mesh_location = mesh_objects.get_display_loc(Glb.VEHICLE_BOX_MESH)
+            veh_x = mesh_location[0]
+            veh_y = mesh_location[1]
+            veh_z = mesh_location[2] + first_time_offset
 
-    box_connect = []
-    mesh_points = []
-    bottom_x_adj = [-veh_b, veh_f, -veh_b, veh_f]
-    for i in range(0, 4):
-        mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 - veh_h / 2.0]))
+            box_end_points = [
+                [veh_x - veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # left, bottom
+                [veh_x + veh_l / 2.0, veh_y - veh_w / 2.0, veh_z + whl_r],  # right, bottom
+                [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r],  # left, top
+                [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r]]  # right, top
 
-    txt_obj = []
-    adj_text_pos = [veh_w/8.0, veh_w/8.0, -veh_w/8.0, -veh_w/8.0]
-    for i in range(0, 4):
-        mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 + veh_h / 2.0]))
-        txt_obj.append(vedo.Text3D(txt=f'{i + 1}_whl', s=0.3, depth=0.2,
-                                   pos=HpF.add_points(box_end_points[i], [0, adj_text_pos[i], 0.3])))
+            box_connect = []
+            mesh_points = []
+            bottom_x_adj = [-veh_b, veh_f, -veh_b, veh_f]
+            for i in range(0, 4):
+                mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 - veh_h / 2.0]))
 
-    box_center_top = HpF.avg_points(mesh_points[4:])
-    txt_obj.append(
-        vedo.Text3D(txt='FRONT', s=0.3, depth=1.0,
-                    pos=HpF.avg_points([mesh_points[4], mesh_points[6],
-                                        mesh_points[4], mesh_points[6],
-                                        box_center_top]))
-    )
-    txt_obj.append(
-        vedo.Text3D(txt='BACK', s=0.3, depth=1.0,
-                    pos=HpF.avg_points([mesh_points[5], mesh_points[7],
-                                        # mesh_points[5], mesh_points[7],
-                                        box_center_top]))
-    )
+            txt_obj = []
+            adj_text_pos = [veh_w/8.0, veh_w/8.0, -veh_w/8.0, -veh_w/8.0]
+            for i in range(0, 4):
+                mesh_points.append(HpF.add_points(box_end_points[i], [bottom_x_adj[i], 0, 0 + veh_h / 2.0]))
+                txt_obj.append(vedo.Text3D(txt=f'{i + 1}_whl', s=0.3, depth=0.2,
+                                           pos=HpF.add_points(box_end_points[i], [0, adj_text_pos[i], 0.3])))
 
-    offset = 0
-    ''' Extend box coordinates to make the box mesh 
-        6 Faces equal 12 triangles
-    '''
-    box_connect.extend([
-        [offset + 0, offset + 1, offset + 2],   # Bottom Rectangle - 0, 1, 2, 3
-        [offset + 1, offset + 2, offset + 3],
+            box_center_top = HpF.avg_points(mesh_points[4:])
+            txt_obj.append(
+                vedo.Text3D(txt='FRONT', s=0.3, depth=1.0,
+                            pos=HpF.avg_points([mesh_points[4], mesh_points[6],
+                                                mesh_points[4], mesh_points[6],
+                                                box_center_top]))
+            )
+            txt_obj.append(
+                vedo.Text3D(txt='BACK', s=0.3, depth=1.0,
+                            pos=HpF.avg_points([mesh_points[5], mesh_points[7],
+                                                # mesh_points[5], mesh_points[7],
+                                                box_center_top]))
+            )
 
-        [offset + 0, offset + 2, offset + 4],   # Front Rectangle
-        [offset + 2, offset + 4, offset + 6],
+            offset = 0
+            ''' Extend box coordinates to make the box mesh 
+                6 Faces equal 12 triangles
+            '''
+            box_connect.extend([
+                [offset + 0, offset + 1, offset + 2],   # Bottom Rectangle - 0, 1, 2, 3
+                [offset + 1, offset + 2, offset + 3],
 
-        [offset + 0, offset + 1, offset + 4],   # Left Rectangle
-        [offset + 1, offset + 4, offset + 5],
+                [offset + 0, offset + 2, offset + 4],   # Front Rectangle
+                [offset + 2, offset + 4, offset + 6],
 
-        [offset + 4, offset + 5, offset + 6],   # Top Rectangle
-        [offset + 5, offset + 6, offset + 7],
+                [offset + 0, offset + 1, offset + 4],   # Left Rectangle
+                [offset + 1, offset + 4, offset + 5],
 
-        [offset + 2, offset + 3, offset + 6],   # Right Rectangle
-        [offset + 3, offset + 6, offset + 7],
+                [offset + 4, offset + 5, offset + 6],   # Top Rectangle
+                [offset + 5, offset + 6, offset + 7],
 
-        [offset + 1, offset + 3, offset + 5],   # Back Rectangle
-        [offset + 3, offset + 5, offset + 7]
-    ])
+                [offset + 2, offset + 3, offset + 6],   # Right Rectangle
+                [offset + 3, offset + 6, offset + 7],
 
-    vehicle_mesh = vedo.Mesh([mesh_points, box_connect])
-    vehicle_mesh.backcolor('orange4').color('orange').linecolor('black').linewidth(1)
-    mesh_objects.add_mesh(Glb.VEHICLE_BOX_MESH, vedo.merge(vehicle_mesh, txt_obj))
+                [offset + 1, offset + 3, offset + 5],   # Back Rectangle
+                [offset + 3, offset + 5, offset + 7]
+            ])
 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-    ''' Make the Four Wheel mesh object for the vehicle now '''
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+            vehicle_mesh = vedo.Mesh([mesh_points, box_connect], alpha=0.3)
+            vehicle_mesh.backcolor('orange4').color('orange').linecolor('black').linewidth(1)
+            mesh_objects.add_mesh(Glb.VEHICLE_BOX_MESH, vedo.merge(vehicle_mesh, txt_obj))
 
-    mesh_location_2 = mesh_objects.get_display_loc(Glb.WHEEL_MESH_F)
-    mesh_location_3 = mesh_objects.get_display_loc(Glb.WHEEL_MESH_B)
-    veh_x = mesh_location_2[0]
-    veh_y = mesh_location_2[1]
-    veh_z = mesh_location_2[2] + first_time_offset
+        elif (mesh_id == Glb.WHEEL_MESH_F) or (mesh_id == Glb.WHEEL_MESH_B):
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+            ''' Make the Four Wheel mesh object for the vehicle now '''
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+            mesh_location_2 = mesh_objects.get_display_loc(Glb.WHEEL_MESH_F)
+            mesh_location_3 = mesh_objects.get_display_loc(Glb.WHEEL_MESH_B)
+            veh_x = mesh_location_2[0]
+            veh_y = mesh_location_2[1]
+            veh_z = mesh_location_2[2] + first_time_offset
 
-    # Not ignoring the wheel width effect
-    whl_centers = [[veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, bottom
-                   [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # right, bottom
-                   [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, top
-                   [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r]]  # right, top
+            # Not ignoring the wheel width effect
+            whl_centers = [[veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, bottom
+                           [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # right, bottom
+                           [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, top
+                           [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r]]  # right, top
 
-    num_pts = 90
-    whl_y_off = [-whl_w / 2.0, -whl_w / 2.0, whl_w / 2.0, whl_w / 2.0]
-    wheel_mesh_f = []
-    wheel_mesh_b = []
-    side_angle = 0  # np.pi / 4
-    for wi, whl_center in enumerate(whl_centers):
-        wheel_points = []
-        whl_connects = []
-        for i in range(0, num_pts):
-            ang = (360/num_pts) * i * (np.pi/180)
-            whl_rim_point_1 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
-                               whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) - whl_y_off[wi],
-                               whl_center[2] + whl_r * np.math.sin(ang)]
-            whl_rim_point_2 = [whl_center[0] + whl_r * np.math.cos(ang) * np.math.cos(side_angle),
-                               whl_center[1] + whl_r * np.math.cos(ang) * np.math.sin(side_angle) + whl_y_off[wi],
-                               whl_center[2] + whl_r * np.math.sin(ang)]
-            wheel_points.append(whl_rim_point_1)
-            wheel_points.append(whl_rim_point_2)
+            num_circular_pts = 75
+            num_of_curve_pts = 11
+            curve_angles_max = 22.5
 
-            whl_connects.append([(i * 2 + 0) % (num_pts * 2),
-                                (i * 2 + 1) % (num_pts * 2),
-                                (i * 2 + 2) % (num_pts * 2)])
-            whl_connects.append([(i * 2 + 1) % (num_pts * 2),
-                                (i * 2 + 2) % (num_pts * 2),
-                                (i * 2 + 3) % (num_pts * 2)])
+            whl_y_off = [-whl_w / 2.0, -whl_w / 2.0, whl_w / 2.0, whl_w / 2.0]
+            wheel_mesh_f = []
+            wheel_mesh_b = []
+            s_ang = 0  # np.pi / 4
+            for wi, whl_center in enumerate(whl_centers):
+                wheel_points = []
+                whl_connects = []
+                for i in range(0, num_circular_pts):
+                    m_ang = i * (360/num_circular_pts) * (np.pi/180)
+                    for j in range(0, num_of_curve_pts):
+                        y_offset = j*2.0/(num_of_curve_pts-1.0) - 1.0                       # GO from -1.0 to 1.0
+                        yz_angle = y_offset * (np.pi/180) * curve_angles_max                # Angle for curvature of wheel
+                        whl_r_mod = whl_r * np.math.cos(yz_angle)
+                        whl_rim_point = HpF.add_points(
+                            whl_center, [whl_r_mod * np.math.cos(m_ang) * np.math.cos(s_ang),
+                                         whl_r_mod * np.math.cos(m_ang) * np.math.sin(s_ang) + y_offset * whl_y_off[wi],
+                                         whl_r_mod * np.math.sin(m_ang)])
+                        wheel_points.append(whl_rim_point)
 
-        wheel_mesh = vedo.Mesh([wheel_points, whl_connects])
-        wheel_mesh.backcolor('green2').color('purple').linecolor('white').linewidth(1)
-        if wi == 0 or wi == 2:
-            wheel_mesh_f.append(wheel_mesh)
-        else:
-            wheel_mesh_b.append(wheel_mesh)
+                    upper_bound = num_circular_pts * num_of_curve_pts
+                    for j in range(0, num_of_curve_pts-1):
+                        whl_connects.append([(num_of_curve_pts * i + j) % upper_bound,
+                                             (num_of_curve_pts * i + j + 1) % upper_bound,
+                                             (num_of_curve_pts * (i + 1) + j) % upper_bound])
 
-    # Stay between 4 and 8
-    num_axel_pts = max(min(int(num_pts/10), 8), 4)
+                        whl_connects.append([(num_of_curve_pts * i + j + 1) % upper_bound,
+                                             (num_of_curve_pts * (i + 1) + j) % upper_bound,
+                                             (num_of_curve_pts * (i + 1) + j + 1) % upper_bound])
 
-    for wi in range(2):
-        axel_points = []
-        axel_connects = []
-        for i in range(0, num_axel_pts):
-            ang = (360 / num_axel_pts) * i * (np.pi / 180)
-            axel_pts_1 = HpF.add_points(whl_centers[0 + wi],
-                                        [whl_r * np.math.cos(ang) * np.math.cos(side_angle) * 0.01,
-                                         whl_r * np.math.cos(ang) * np.math.sin(side_angle) * 0.01,
-                                         whl_r * np.math.sin(ang) * 0.01])
+                    # whl_rim_point_1 = [whl_center[0] + whl_r * np.math.cos(m_ang) * np.math.cos(s_ang),
+                    #                    whl_center[1] + whl_r * np.math.cos(m_ang) * np.math.sin(s_ang) - whl_y_off[wi],
+                    #                    whl_center[2] + whl_r * np.math.sin(m_ang)]
+                    # whl_rim_point_2 = [whl_center[0] + whl_r * np.math.cos(m_ang) * np.math.cos(s_ang),
+                    #                    whl_center[1] + whl_r * np.math.cos(m_ang) * np.math.sin(s_ang) + whl_y_off[wi],
+                    #                    whl_center[2] + whl_r * np.math.sin(m_ang)]
+                    # wheel_points.append(whl_rim_point_1)
+                    # wheel_points.append(whl_rim_point_2)
+                    # whl_connects.append([(i * 2 + 0) % (num_circular_pts * 2),
+                    #                     (i * 2 + 1) % (num_circular_pts * 2),
+                    #                     (i * 2 + 2) % (num_circular_pts * 2)])
+                    # whl_connects.append([(i * 2 + 1) % (num_circular_pts * 2),
+                    #                     (i * 2 + 2) % (num_circular_pts * 2),
+                    #                     (i * 2 + 3) % (num_circular_pts * 2)])
 
-            axel_pts_2 = HpF.add_points(whl_centers[2 + wi],
-                                        [whl_r * np.math.cos(ang) * np.math.cos(side_angle) * 0.01,
-                                         whl_r * np.math.cos(ang) * np.math.sin(side_angle) * 0.01,
-                                         whl_r * np.math.sin(ang) * 0.01])
+                wheel_mesh = vedo.Mesh([wheel_points, whl_connects])
+                wheel_mesh.backcolor('green2').color('purple').linecolor('white').linewidth(1)
+                if wi == 0 or wi == 2:
+                    wheel_mesh_f.append(wheel_mesh)
+                else:
+                    wheel_mesh_b.append(wheel_mesh)
 
-            axel_points.append(axel_pts_1)
-            axel_points.append(axel_pts_2)
+            # Stay between 4 and 8
+            num_axel_pts = max(min(int(num_circular_pts/10), 8), 4)
 
-            axel_connects.append([(i * 2 + 0) % (num_axel_pts * 2),
-                                  (i * 2 + 1) % (num_axel_pts * 2),
-                                  (i * 2 + 2) % (num_axel_pts * 2)])
+            for wi in range(2):
+                axel_points = []
+                axel_connects = []
+                axle_r = whl_r*0.05
+                for i in range(0, num_axel_pts):
+                    m_ang = (360 / num_axel_pts) * i * (np.pi / 180)
+                    axel_pts_1 = HpF.add_points(whl_centers[0 + wi],
+                                                [axle_r * np.math.cos(m_ang) * np.math.cos(s_ang),
+                                                 axle_r * np.math.cos(m_ang) * np.math.sin(s_ang),
+                                                 axle_r * np.math.sin(m_ang)])
 
-            axel_connects.append([(i * 2 + 1) % (num_axel_pts * 2),
-                                  (i * 2 + 2) % (num_axel_pts * 2),
-                                  (i * 2 + 3) % (num_axel_pts * 2)])
+                    axel_pts_2 = HpF.add_points(whl_centers[2 + wi],
+                                                [axle_r * np.math.cos(m_ang) * np.math.cos(s_ang),
+                                                 axle_r * np.math.cos(m_ang) * np.math.sin(s_ang),
+                                                 axle_r * np.math.sin(m_ang)])
 
-        axel_mesh = vedo.Mesh([axel_points, axel_connects])
-        axel_mesh.backcolor('darkgreen').color('black').linecolor('grey').linewidth(0.3)
-        if wi == 0:
-            wheel_mesh_f.append(axel_mesh)
-        else:
-            wheel_mesh_b.append(axel_mesh)
+                    axel_points.append(axel_pts_1)
+                    axel_points.append(axel_pts_2)
 
-    mesh_objects.add_mesh(Glb.WHEEL_MESH_F, vedo.merge(wheel_mesh_f))
-    mesh_objects.add_mesh(Glb.WHEEL_MESH_B, vedo.merge(wheel_mesh_b))
+                    axel_connects.append([(i * 2 + 0) % (num_axel_pts * 2),
+                                          (i * 2 + 1) % (num_axel_pts * 2),
+                                          (i * 2 + 2) % (num_axel_pts * 2)])
+
+                    axel_connects.append([(i * 2 + 1) % (num_axel_pts * 2),
+                                          (i * 2 + 2) % (num_axel_pts * 2),
+                                          (i * 2 + 3) % (num_axel_pts * 2)])
+
+                axel_mesh = vedo.Mesh([axel_points, axel_connects])
+                axel_mesh.backcolor('darkgreen').color('black').linecolor('grey').linewidth(0.3)
+                if wi == 0:
+                    wheel_mesh_f.append(axel_mesh)
+                else:
+                    wheel_mesh_b.append(axel_mesh)
+
+            mesh_objects.add_mesh(Glb.WHEEL_MESH_F, vedo.merge(wheel_mesh_f))
+            mesh_objects.add_mesh(Glb.WHEEL_MESH_B, vedo.merge(wheel_mesh_b))
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
     ''' Making the wheel bottom points Mesh object '''
@@ -1244,10 +1294,45 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects) -> Intf.AllMeshObjects:
                    [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z],  # left, top
                    [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z]]  # right, top
 
-    wb_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]])
-    wb_mesh.linecolor('yellow')
+    wb_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]], alpha=0.3)
+    wb_mesh.linecolor('yellow').linewidth(0.6)
 
     mesh_objects.add_mesh(Glb.WHL_BOTTOM_MESH, wb_mesh)
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    ''' A Box mesh for the vehicle '''
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+    mesh_location_4 = mesh_objects.get_display_loc(Glb.WHL_BOTTOM_MESH)
+    veh_x = mesh_location_4[0]
+    veh_y = mesh_location_4[1]
+    veh_z = mesh_location_4[2] + first_time_offset
+
+    whl_bottoms = [[veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z],  # left, bottom
+                   [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z],  # right, bottom
+                   [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z],  # left, top
+                   [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z]]  # right, top
+
+    wc_mesh_f = vedo.Line(whl_centers[0], whl_centers[2], c='green', lw=2)
+    wc_mesh_b = vedo.Line(whl_centers[1], whl_centers[3], c='green', lw=2)
+    print(wc_mesh_f.points(), wc_mesh_b.points())
+    mesh_objects.add_mesh(Glb.WHL_CENTER_MESH_F, wc_mesh_f)
+    mesh_objects.add_mesh(Glb.WHL_CENTER_MESH_B, wc_mesh_b)
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+    ''' Two lines between the wheels '''
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+    # wc_mesh = vedo.Rectangle(whl_centers[0], whl_centers[3], c='pink')
+    # print(wc_mesh.points())
+    # mesh_objects.add_mesh(Glb.WHL_CENTER_MESH, wc_mesh)
+
+    wc_mesh_f = vedo.Line(whl_centers[0], whl_centers[2], c='green', lw=2)
+    wc_mesh_b = vedo.Line(whl_centers[1], whl_centers[3], c='green', lw=2)
+    print(wc_mesh_f.points(), wc_mesh_b.points())
+    mesh_objects.add_mesh(Glb.WHL_CENTER_MESH_F, wc_mesh_f)
+    mesh_objects.add_mesh(Glb.WHL_CENTER_MESH_B, wc_mesh_b)
+
 
     return mesh_objects
 
@@ -1337,7 +1422,7 @@ def add_text(text: str, pos: list[float], silent=True, size=1.0, col='floralwhit
     global g_plot
     new_txt = vedo.Text3D(txt=text, s=size, pos=HpF.add_points(pos, [0, 0, 0.5]),
                           depth=0.25*size, alpha=1.0, c=col)
-    plt.add([new_txt])
+    plt.add(new_txt)
     if keep:
         g_plot.plotted_texts.append(new_txt)
     if not silent:
@@ -1426,7 +1511,7 @@ def get_point_list(end_points: list[list[float]], num_points: int):
     for i in range(0, num_points):
         new_approx_point = [cur_point[0] + x_unit, cur_point[1] + y_unit, cur_point[2] + z_offset]
         # add_point(new_approx_point, size=Glb.RD_4, col='white', silent=True)
-        new_actual_point = cloud.closestPoint(new_approx_point)
+        new_actual_point = cloud.closest_point(new_approx_point)
         xy_dist_temp = HpF.dist_xy([new_approx_point, new_actual_point])
         if xy_dist_temp < acceptable_dist:
             points_to_use.append(new_actual_point)
@@ -1435,7 +1520,7 @@ def get_point_list(end_points: list[list[float]], num_points: int):
             bad_point_count += 1
             new_approx_point = [cur_point[0] + (x_unit * 1.1), cur_point[1] + (y_unit * 1.1),
                                 cur_point[2] + z_offset]
-            new_actual_points = cloud.closestPoint(new_approx_point, radius=acceptable_dist)
+            new_actual_points = cloud.closest_point(new_approx_point, radius=acceptable_dist)
             if len(new_actual_points) > 1:
                 made_better += 1
                 points_to_use.append(new_actual_points[0])
@@ -1754,7 +1839,7 @@ def find_closest_point(point: list[float], num_retry=60, dist_threshold=0.2, agg
     for rt in range(0, num_retry):
         # rand_point = [(xyz + (random.random() - 0.5)*fact) for xyz in point]
         rand_point = [point[0], point[1], point[2] - (random.random() - 0.25) * fact]
-        close_point = cloud.closestPoint(rand_point)
+        close_point = cloud.closest_point(rand_point)
         fact *= aggressive
         dist_found = HpF.dist_xy([close_point, rand_point])
         if min_dist > dist_found:
@@ -1769,7 +1854,7 @@ def find_closest_point(point: list[float], num_retry=60, dist_threshold=0.2, agg
     for rt in range(num_retry, num_retry * 2):
         # rand_point = [(xyz + (random.random() - 0.5)*fact) for xyz in point]
         rand_point = [point[0], point[1], point[2] - (random.random() - 0.75) * fact]
-        close_point = cloud.closestPoint(rand_point)
+        close_point = cloud.closest_point(rand_point)
         fact *= aggressive
         dist_found = HpF.dist_xy([close_point, rand_point])
         if min_dist > dist_found:
