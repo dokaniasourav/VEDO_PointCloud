@@ -33,6 +33,8 @@ class MeshObject:
             raise ValueError('Incorrect arguments for update position')
 
     def rotate(self, angle: float, axis: list[float], point: list[float]):
+        if abs(angle) < 0.000001:
+            return
         if len(axis) == len(point) == 3:
             self.mesh.rotate(angle=angle, axis=axis, point=point)
             self.mesh_location = HpF.sub_points(self.disp_location, self.mesh.pos())
@@ -85,18 +87,18 @@ class AllMeshObjects:
             print('Mesh object not found')
             return None
 
-    def get_display_loc(self, id_num: int):
+    def get_display_loc(self, id_num: int) -> list[float]:
         return self.meshes[id_num].disp_location
 
-    def get_mesh_location(self, id_num: int):
+    def get_mesh_location(self, id_num: int) -> list[float]:
         return self.meshes[id_num].mesh_location
 
-    def get_points(self, id_num: int):
+    def get_points(self, id_num: int) -> list[list[float]]:
         if id_num in self.meshes.keys():
             return self.meshes[id_num].mesh.points()
         else:
             print('Mesh object not found')
-            return None
+            return [[]]
 
     def move(self, id_num: int, position: list[float]):
         self.meshes[id_num].move(position)
@@ -104,13 +106,17 @@ class AllMeshObjects:
     def rotate(self, id_num: int, angle: float, axis: list[float], point: list[float]):
         self.meshes[id_num].rotate(angle, axis, point)
 
-    def move_all(self, position: list[float]):
-        for id_num in self.meshes.keys():
-            self.meshes[id_num].move(position)
+    def rotate_i(self, id_nums: list[int], angle: float, axis: list[float], point: list[float]):
+        for id_num in id_nums:
+            self.meshes[id_num].rotate(angle, axis, point)
 
     def rotate_all(self, angle: float, axis: list[float], point: list[float]):
         for id_num in self.meshes.keys():
             self.meshes[id_num].rotate(angle, axis, point)
+
+    def move_all(self, position: list[float]):
+        for id_num in self.meshes.keys():
+            self.meshes[id_num].move(position)
 
     def add_to_plot(self, plt: vedo.Plotter, id_num: int):
         plt.add(self.meshes[id_num].mesh)
@@ -120,41 +126,43 @@ def get_vehicle_data(gui_q, ):
     root = tkinter.Tk()
     root.title('Vehicle Attribute Selection')
     root.columnconfigure(0, weight=1)
-    root.columnconfigure(1, weight=4)
+    root.columnconfigure(1, weight=1)
+    root.columnconfigure(2, weight=1)
 
     fields = {
         0: {'data': tkinter.StringVar(), 'default': '___', 'max_v': 10.0, 'min_v': 0.0,
             's_name': '__', 'name': 'Enter the required vehicle parameters in feet'},
-        1: {'data': tkinter.StringVar(), 'default': '1.4', 'max_v': 10.0, 'min_v': 0.1,
+        1: {'data': tkinter.StringVar(), 'default': '0.8', 'max_v': 10.0, 'min_v': 0.1,
             's_name': 'back_overhang', 'name': 'Back Overhang'},
-        2: {'data': tkinter.StringVar(), 'default': '2.4', 'max_v': 10.0, 'min_v': 0.1,
+        2: {'data': tkinter.StringVar(), 'default': '0.8', 'max_v': 10.0, 'min_v': 0.1,
             's_name': 'front_overhang', 'name': 'Front Overhang'},
-        6: {'data': tkinter.StringVar(), 'default': '10.0', 'max_v': 40.0, 'min_v': 1.0,
+        6: {'data': tkinter.StringVar(), 'default': '4.0', 'max_v': 40.0, 'min_v': 1.0,
             's_name': 'length', 'name': 'Vehicle Length'},
-        7: {'data': tkinter.StringVar(), 'default': '5.0', 'max_v': 20.0, 'min_v': 1.0,
+        7: {'data': tkinter.StringVar(), 'default': '2.0', 'max_v': 20.0, 'min_v': 1.0,
             's_name': 'width', 'name': 'Vehicle Width'},
 
         3: {'data': tkinter.StringVar(), 'default': '0.6', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_radius', 'name': 'Wheel Radius'},
-        4: {'data': tkinter.StringVar(), 'default': '0.3', 'max_v': 20.0, 'min_v': 0.1,
+        4: {'data': tkinter.StringVar(), 'default': '0.2', 'max_v': 20.0, 'min_v': 0.1,
             's_name': 'wheel_width', 'name': 'Wheel Width'},
         5: {'data': tkinter.StringVar(), 'default': '4', 'max_v': 16.0, 'min_v': 1.0,
             's_name': 'num_wheels', 'name': 'Number of wheels'}
     }
 
     print('Enter vehicle attributes in dialog box')
-    for i in range(0, 8):
-        tkinter.Label(root, text=fields[i]['name'], borderwidth=2, font=10).grid(
-            column=0, row=i, sticky=tkinter.W, padx=5, pady=5)
+    for i in fields.keys():
+        label = tkinter.Label(root, text=fields[i]['name'], borderwidth=2, font=10)
+        label.grid(column=0, row=i, sticky=tkinter.W, padx=5, pady=5)
         if i == 0:
             continue
         else:
             fields[i]['data'].set(fields[i]['default'])
-            ent = tkinter.Entry(root, textvariable=fields[i]['data'])
+            ent = tkinter.Entry(root, textvariable=fields[i]['data'], font=10)
             ent.grid(column=1, row=i, sticky=tkinter.E, padx=5, pady=5)
 
     tkinter.Button(root, text='Confirm', command=lambda: get_values(root, fields, gui_q)
                    ).grid(column=1, row=len(fields), sticky=tkinter.E, padx=5, pady=5)
+
     root.mainloop()
     exit()
 
