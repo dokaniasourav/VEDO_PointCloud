@@ -521,7 +521,7 @@ def state_vehicle(cpt):
         # g_plot.mesh_objects.add_mesh_obj(Glb.WHL_AXLE_MESH_B, wheel_centers_b)
 
         # 3. Debug point on map
-        add_point(cpt, size=Glb.RD_4, col='purple', is_text=True, custom_text='Point A')
+        add_point(cpt, size=Glb.RD_4, col='purple', is_text=True)
 
         # 4. Call the function for creating all the required mesh objects
         make_vehicle_mesh(g_plot.mesh_objects, meshes_to_make)
@@ -554,13 +554,13 @@ def state_vehicle(cpt):
         g_plot.tracking_mode = False
         g_plot.gp_int_state = 0
         rem_all_trackers()
-        add_point(cpt, size=Glb.RD_4, col='purple', is_text=True, custom_text='Point B')
+        add_point(cpt, size=Glb.RD_4, col='purple', is_text=True)
 
         # 2. Get the point list obtained from mouse clicks
         two_points = g_plot.current_points[0:]
         g_plot.current_points = []
 
-        num_points = 3
+        num_points = 1
         # ''' OPTION TO SELECT NO OF POINTS '''
         # root = tkinter.Tk()
         # root.withdraw()
@@ -573,8 +573,8 @@ def state_vehicle(cpt):
         # ''' END OF OPTIONS MENU CODE '''
 
         list_of_points = get_point_list(two_points, num_points)
-        for point in list_of_points:
-            add_point(point, size=Glb.RD_3)
+        # for point in list_of_points:
+        #     add_point(point, size=Glb.RD_3)
 
         # 3. Get the list of vehicles meshes made and set new position
         g_plot.mesh_objects.move_all(two_points[0])
@@ -583,7 +583,7 @@ def state_vehicle(cpt):
         line_angle = HpF.get_xy_angle(two_points)
 
         # Rotate in N number of steps
-        num_steps = 5
+        num_steps = 4
         for i in range(0, int(num_steps)):
             g_plot.mesh_objects.rotate_all(angle=line_angle / num_steps,
                                            axis=[0, 0, 1], point=two_points[0])
@@ -598,7 +598,7 @@ def state_vehicle(cpt):
 
             # 1. Provide some vertical offset in the beginning
             sim_point = HpF.add_points(sim_point1, [0, 0, 1])
-            print(pi, ' sim point = ', sim_point, end=' ')
+            # print(pi, ' sim point = ', sim_point, end=' ')
 
             # 2. Move the mesh to this location
             g_plot.mesh_objects.move_all(position=sim_point)
@@ -650,7 +650,7 @@ def state_vehicle(cpt):
 
             # c) Whole vehicle position is between mid of two axles
             center_pos_g = HpF.avg_points([mid_axle_point_gf, mid_axle_point_gb])
-            add_point(pos=center_pos_g, size=Glb.RD_4, col='pink')
+            # add_point(pos=center_pos_g, size=Glb.RD_4, col='pink')
 
             # d) Place the entire vehicle on the center position
             g_plot.mesh_objects.move_all(position=center_pos_g)
@@ -741,12 +741,13 @@ def state_vehicle(cpt):
             #       '\n\t long_angles_g: ', long_angle_g,
             #       '\n\t long_angles_v: ', long_angle_v,
             #       '\n\t --- END ---')
-            num_int_points = []
-            for mi, close_ground_mesh in enumerate(close_ground_meshes):
-                intersection = close_ground_mesh.intersect_with(
-                    g_plot.mesh_objects.get_mesh(id_num=wheel_meshes[mi]))
-                num_int_points.append(len(intersection.points()))
-            print(' Int point = ', num_int_points)
+
+            # num_int_points = []
+            # for mi, close_ground_mesh in enumerate(close_ground_meshes):
+            #     intersection = close_ground_mesh.intersect_with(
+            #         g_plot.mesh_objects.get_mesh(id_num=wheel_meshes[mi]))
+            #     num_int_points.append(len(intersection.points()))
+            # print(' Int point = ', num_int_points)
 
             bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
             dist_list = []
