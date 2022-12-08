@@ -16,6 +16,7 @@ from datetime import datetime
 
 import Global as Glb
 import Helper as HpF
+import NewGUI as Nui
 import Interface as Intf
 import LocalPlotter as LPlt
 
@@ -472,24 +473,25 @@ def state_vehicle(cpt):
     ''' Only called when initializing for the first time from a key press = V'''
     if g_plot.gp_int_state == 0:
         update_text('text2', 'Vehicle mode and Tracking: ON')
-        new_window = multiprocessing.Process(target=Intf.get_vehicle_data, args=(g_plot.out_q,))
-        new_window.start()
-        # Can do something in parallel
+        # new_window = multiprocessing.Process(target=Intf.get_vehicle_data, args=(g_plot.out_q,))
+        # new_window.start()
+        # # Can do something in parallel
+        #
+        # # ...
+        #
+        # # End of parallel task
+        # new_window.join()
 
-        # ...
+        main_gui = Nui.MainGui()
+        main_gui.show_gui()
+        vehicle_data = Intf.VehicleData(main_gui.output_dict)
 
-        # End of parallel task
-        new_window.join()
-        if not g_plot.out_q.empty():
-            vehicle_data: Intf.VehicleData = g_plot.out_q.get()
-            vehicle_data.height = vehicle_data.wheel_radius / 2.0
-            g_plot.mesh_objects = Intf.AllMeshObjects(vehicle_data)
-        else:
-            print('Error in getting vehicle data')
+        if not vehicle_data.valid_data:
+            print('Could not obtain user inputs')
+            g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
+            return
 
-        g_plot.gp_int_state = 1
-
-    elif g_plot.gp_int_state == 1:
+        g_plot.mesh_objects = Intf.AllMeshObjects(vehicle_data)
 
         ''' Wheel bottom mesh and vehicular body mesh '''
         meshes_to_make = [Glb.VEHICLE_BOX_MESH, Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B, Glb.WHL_BOTTOM_MESH,
@@ -499,10 +501,32 @@ def state_vehicle(cpt):
 
         mesh_objects = []
         for mesh_to_make in meshes_to_make:
-            mesh_object = Intf.MeshObject(Glb.MESH_DIR[mesh_to_make], cpt)
+            mesh_object = Intf.MeshObject(Glb.MESH_DIR[mesh_to_make], [0, 0, 0])
             g_plot.mesh_objects.add_mesh_obj(mesh_to_make, mesh_object)
             mesh_objects.append(mesh_object)
 
+        # 4. Call the function for creating all the required mesh objects
+        make_vehicle_mesh(g_plot.mesh_objects, meshes_to_make)
+
+        meshes_to_show = [Glb.VEHICLE_BOX_MESH, Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B,
+                          # Glb.WHL_BOTTOM_MESH, Glb.WHL_AXLE_MESH_F, Glb.WHL_AXLE_MESH_B, Glb.VEH_CENTER_MESH
+                          ]
+        for mesh_to_show in meshes_to_show:
+            g_plot.mesh_objects.add_to_plot(plt, mesh_to_show)  # Add the box
+
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.VEHICLE_BOX_MESH)           # Add the box
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHEEL_MESH_F)               # Add front wheels
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHEEL_MESH_B)               # Add back wheels
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_BOTTOM_MESH)            # Add vehicle bottom mesh
+        # # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_CENTER_MESH)            # Add vehicle bottom mesh
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_AXLE_MESH_F)          # Add center front mesh
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_AXLE_MESH_B)          # Add center back mesh
+        # g_plot.mesh_objects.add_to_plot(plt, Glb.VEH_CENTER_MESH)               # VEHICLE BOX mesh
+        plt.render()
+        g_plot.tracking_mode = True
+        g_plot.gp_int_state = 1
+
+    elif g_plot.gp_int_state == 1:
         # vehicle_box_mesh = Intf.MeshObject('Vehicle Box', cpt)
         # wheel_mesh_f = Intf.MeshObject('Wheel Front', cpt)
         # wheel_mesh_b = Intf.MeshObject('Wheel Back', cpt)
@@ -521,32 +545,11 @@ def state_vehicle(cpt):
         # g_plot.mesh_objects.add_mesh_obj(Glb.WHL_AXLE_MESH_B, wheel_centers_b)
 
         # 3. Debug point on map
-        add_point(cpt, size=Glb.RD_4, col='purple', is_text=True)
-
-        # 4. Call the function for creating all the required mesh objects
-        make_vehicle_mesh(g_plot.mesh_objects, meshes_to_make)
-
-        meshes_to_show = [Glb.VEHICLE_BOX_MESH, Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B, Glb.WHL_BOTTOM_MESH,
-                          Glb.WHL_AXLE_MESH_F, Glb.WHL_AXLE_MESH_B, Glb.VEH_CENTER_MESH]
-        for mesh_to_show in meshes_to_show:
-            g_plot.mesh_objects.add_to_plot(plt, mesh_to_show)  # Add the box
-
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.VEHICLE_BOX_MESH)           # Add the box
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHEEL_MESH_F)               # Add front wheels
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHEEL_MESH_B)               # Add back wheels
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_BOTTOM_MESH)            # Add vehicle bottom mesh
-        # # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_CENTER_MESH)            # Add vehicle bottom mesh
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_AXLE_MESH_F)          # Add center front mesh
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.WHL_AXLE_MESH_B)          # Add center back mesh
-        # g_plot.mesh_objects.add_to_plot(plt, Glb.VEH_CENTER_MESH)               # VEHICLE BOX mesh
-
-        plt.render()
+        add_point(cpt, size=Glb.RD_4, col='purple')
         print('Add a second point to track the vehicle')
 
         # 4. Set global variables
         g_plot.gp_int_state = 2
-        g_plot.tracking_mode = True
-        print('Tracking mode is ON')
 
     elif g_plot.gp_int_state == 2:
 
@@ -554,23 +557,13 @@ def state_vehicle(cpt):
         g_plot.tracking_mode = False
         g_plot.gp_int_state = 0
         rem_all_trackers()
-        add_point(cpt, size=Glb.RD_4, col='purple', is_text=True)
+        add_point(cpt, size=Glb.RD_4, col='purple')
 
         # 2. Get the point list obtained from mouse clicks
         two_points = g_plot.current_points[0:]
         g_plot.current_points = []
 
-        num_points = 1
-        # ''' OPTION TO SELECT NO OF POINTS '''
-        # root = tkinter.Tk()
-        # root.withdraw()
-        # num_points = int(tkinter.simpledialog.askinteger("Input a number",
-        #                                                  "Number of points on line",
-        #                                                  initialvalue=3,
-        #                                                  minvalue=1, maxvalue=1000
-        #                                                  ))
-        # root.destroy()
-        # ''' END OF OPTIONS MENU CODE '''
+        num_points = g_plot.mesh_objects.data.num_of_points
 
         list_of_points = get_point_list(two_points, num_points)
         # for point in list_of_points:
@@ -590,9 +583,12 @@ def state_vehicle(cpt):
             plt.render()
 
         whl_r = g_plot.mesh_objects.data.wheel_radius
+
         g_plot.plotter_mode = Glb.IDEAL_PLT_MODE
 
         #####################################################################################################
+
+        wheel_center_point_trace = []
 
         for pi, sim_point1 in enumerate(list_of_points):
 
@@ -602,10 +598,11 @@ def state_vehicle(cpt):
 
             # 2. Move the mesh to this location
             g_plot.mesh_objects.move_all(position=sim_point)
-            plt.render()
 
-            bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
-            # print('Bottom points = ', bottom_points_v)
+            bottom_points_vf = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_F)
+            bottom_points_vb = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_B)
+            bottom_points_vv = [bottom_points_vf[2], bottom_points_vb[2],
+                                bottom_points_vf[3], bottom_points_vb[3]]
 
             # 4. Get the bottom intersection meshes using close point clouds
             close_ground_points: list[list[float]] = []
@@ -614,7 +611,7 @@ def state_vehicle(cpt):
             closest_wheel = 0
             close_ground_meshes = []
 
-            for wi, whl_bottom in enumerate(bottom_points_v):
+            for wi, whl_bottom in enumerate(bottom_points_vv):
                 # a) Finding the close point for all wheels
                 close_point = find_closest_point(whl_bottom)
                 close_ground_points.append(close_point)
@@ -659,8 +656,8 @@ def state_vehicle(cpt):
             axle_points_vf = g_plot.mesh_objects.get_points(id_num=Glb.WHL_AXLE_MESH_F)
             axle_points_vb = g_plot.mesh_objects.get_points(id_num=Glb.WHL_AXLE_MESH_B)
 
-            mid_axle_point_vf = HpF.avg_points(axle_points_vf)
-            mid_axle_point_vb = HpF.avg_points(axle_points_vb)
+            mid_axle_point_vf = HpF.avg_points(axle_points_vf[0:2])
+            mid_axle_point_vb = HpF.avg_points(axle_points_vb[0:2])
             mid_side_point_vl = HpF.avg_points([center_points_v[0], center_points_v[1]])
             mid_side_point_vr = HpF.avg_points([center_points_v[2], center_points_v[3]])
             center_pos_wheels = HpF.avg_points([mid_axle_point_vf, mid_axle_point_vb])
@@ -678,8 +675,8 @@ def state_vehicle(cpt):
             axle_angles_gf = 0 - HpF.get_z_angle([close_ground_points[0], close_ground_points[2]])
             axle_angles_gb = 0 - HpF.get_z_angle([close_ground_points[1], close_ground_points[3]])
 
-            axle_angles_vf = 0 - HpF.get_z_angle(axle_points_vf)
-            axle_angles_vb = 0 - HpF.get_z_angle(axle_points_vb)
+            axle_angles_vf = 0 - HpF.get_z_angle(axle_points_vf[0:2])
+            axle_angles_vb = 0 - HpF.get_z_angle(axle_points_vb[0:2])
 
             if Glb.DEBUG_MODE:
                 # Debug add lines
@@ -688,7 +685,11 @@ def state_vehicle(cpt):
                 add_line(close_ground_points[0:2], col='purple')
                 add_line(close_ground_points[2:4], col='purple')
 
-                bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
+                bottom_points_vf = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_F)
+                bottom_points_vb = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_B)
+                bottom_points_v = [bottom_points_vf[2], bottom_points_vb[2],
+                                   bottom_points_vf[3], bottom_points_vb[3]]
+
                 add_line(bottom_points_v[0:2], col='pink')
                 add_line(bottom_points_v[2:4], col='pink')
                 add_line([bottom_points_v[0], bottom_points_v[2]], col='pink')
@@ -698,7 +699,7 @@ def state_vehicle(cpt):
             g_plot.mesh_objects.rotate_all(angle=long_angle_g - long_angle_v,
                                            axis=short_axis_v, point=center_pos_vehicle)
 
-            wheel_meshes = [Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B, Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B]
+            wheel_mesh_ids = [Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B, Glb.WHEEL_MESH_F, Glb.WHEEL_MESH_B]
             # num_int_points = []
             # for mi, close_ground_mesh in enumerate(close_ground_meshes):
             #     intersection = close_ground_mesh.intersect_with(
@@ -719,13 +720,17 @@ def state_vehicle(cpt):
             g_plot.mesh_objects.rotate_all(angle=axle_angle_diff_min, axis=loong_axis_v, point=center_pos_vehicle)
 
             if Glb.DEBUG_MODE:
-                bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
+                bottom_points_vf = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_F)
+                bottom_points_vb = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_B)
+                bottom_points_v = [bottom_points_vf[2], bottom_points_vb[2],
+                                   bottom_points_vf[3], bottom_points_vb[3]]
+
                 add_line(bottom_points_v[0:2], col='yellow')
                 add_line(bottom_points_v[2:4], col='yellow')
                 add_line([bottom_points_v[0], bottom_points_v[2]], col='yellow')
                 add_line([bottom_points_v[1], bottom_points_v[3]], col='yellow')
 
-            # # e) Rotate the wheel axles
+            # e) Rotate the wheel axles
             g_plot.mesh_objects.rotate_i(id_nums=[Glb.WHEEL_MESH_F, Glb.WHL_AXLE_MESH_F],
                                          angle=axle_angle_df - axle_angle_diff_min,
                                          axis=loong_axis_v, point=mid_axle_point_vf)
@@ -749,16 +754,56 @@ def state_vehicle(cpt):
             #     num_int_points.append(len(intersection.points()))
             # print(' Int point = ', num_int_points)
 
-            bottom_points_v = g_plot.mesh_objects.get_points(Glb.WHL_BOTTOM_MESH)
-            dist_list = []
-            for b_point in bottom_points_v:
-                n_point = cloud.closest_point(b_point)
-                dist_list.append(HpF.dist_xyz([b_point, n_point]))
-                add_line(points=[b_point, n_point], col='white')
-                add_point(b_point, size=Glb.RD_4, col='red')
-                add_point(n_point, size=Glb.RD_4, col='red')
-            print('Dist = ', dist_list)
+            bottom_points_vf = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_F)
+            bottom_points_vb = g_plot.mesh_objects.get_points(Glb.WHL_AXLE_MESH_B)
+            bottom_points_v = [bottom_points_vf[2], bottom_points_vb[2],
+                               bottom_points_vf[3], bottom_points_vb[3]]
 
+            avg_bottom_point = HpF.avg_points(bottom_points_v)
+            veh_l_total = (g_plot.mesh_objects.data.length +
+                           g_plot.mesh_objects.data.front_overhang +
+                           g_plot.mesh_objects.data.back_overhang)
+            veh_w = g_plot.mesh_objects.data.width
+
+            close_center_points_on_ground = cloud.closest_point(avg_bottom_point,
+                                                                radius=np.sqrt(((veh_w*veh_w) +
+                                                                                (veh_l_total*veh_l_total))/3.6))
+
+            close_center_ground_mesh = vedo.delaunay2d(close_center_points_on_ground).c('pink')
+
+            int_point_mesh = close_center_ground_mesh.intersect_with(g_plot.mesh_objects.get_mesh(Glb.VEHICLE_BOX_MESH))
+
+            found_int_points = len(int_point_mesh.points())
+            print('Found ', found_int_points, ' intersections for ', pi)
+
+            if found_int_points > 0:
+                plt.add(int_point_mesh)
+                plt.render()
+                break
+
+            wheel_center_point_trace.append(bottom_points_v)
+            # dist_list = []
+            # for bi, b_point in enumerate(bottom_points_v):
+            #     n_point = cloud.closest_point(b_point)
+            #     if b_point[2] > n_point[2]:
+            #         d_sign = 1
+            #     else:
+            #         d_sign = -1
+            #     dist_list.append(HpF.dist_xyz([b_point, n_point])*100*d_sign/whl_r)
+            #     # add_line(points=[b_point, n_point], col='white')
+            #     # add_point(b_point, size=Glb.RD_4, col='red', custom_text=f'{bi}')
+            #     # add_point(n_point, size=Glb.RD_4, col='red')
+            # print('Dist = ', dist_list)
+
+        whl_center_points = [[], [], [], []]
+        for wc, wheel_center_point in enumerate(wheel_center_point_trace):
+            for cc in range(0, 4):
+                whl_center_points[cc].append(wheel_center_point[cc])
+
+        for cc in range(0, 4):
+            add_lines(whl_center_points[cc], width=4)
+
+        print('Done with simulation of ', num_points, ' points')
         #
         #     '''
         #     # 1. Add a vertical offset put the vehicle down, this should be removed later
@@ -1147,13 +1192,13 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects, mesh_ids: list[int]) ->
 
             box_center_top = HpF.avg_points(mesh_points[4:])
             txt_obj.append(
-                vedo.Text3D(txt='FRONT', s=0.3, depth=1.0,
+                vedo.Text3D(txt='BACK', s=0.3, depth=1.0,
                             pos=HpF.avg_points([mesh_points[4], mesh_points[6],
                                                 mesh_points[4], mesh_points[6],
                                                 box_center_top]))
             )
             txt_obj.append(
-                vedo.Text3D(txt='BACK', s=0.3, depth=1.0,
+                vedo.Text3D(txt='FRONT', s=0.3, depth=1.0,
                             pos=HpF.avg_points([mesh_points[5], mesh_points[7],
                                                 # mesh_points[5], mesh_points[7],
                                                 box_center_top]))
@@ -1183,7 +1228,7 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects, mesh_ids: list[int]) ->
                 [offset + 3, offset + 5, offset + 7]
             ])
 
-            vehicle_mesh = vedo.Mesh([mesh_points, box_connect], alpha=0.3)
+            vehicle_mesh = vedo.Mesh([mesh_points, box_connect], alpha=1.0)
             vehicle_mesh.backcolor('orange4').color('orange').linecolor('black').linewidth(1)
             mesh_objects.add_mesh(mesh_id, vedo.merge(vehicle_mesh, txt_obj))
 
@@ -1282,7 +1327,7 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects, mesh_ids: list[int]) ->
                            [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z],  # left, top
                            [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z]]  # right, top
 
-            wb_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]], alpha=0.3)
+            wb_mesh = vedo.Mesh([whl_bottoms, [(0, 1, 2), (1, 2, 3)]], alpha=1.0)
             wb_mesh.linecolor('yellow').linewidth(0.6)
 
             mesh_objects.add_mesh(mesh_id, wb_mesh)
@@ -1293,15 +1338,23 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects, mesh_ids: list[int]) ->
             # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
             if mesh_id == Glb.WHL_AXLE_MESH_F:
                 whl_centers = [
-                    [veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left, bottom
-                    [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r]   # left, top
+                    [veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left center front
+                    [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # right center front
+
+                    [veh_x - veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z],          # right bottom front
+                    [veh_x - veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z]           # left  bottom front
                 ]
             else:
                 whl_centers = [
-                    [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],    # right, bottom
-                    [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r]   # right, top
+                    [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # left  center back
+                    [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z + whl_r],  # right center back
+
+                    [veh_x + veh_l / 2.0, veh_y - (veh_w / 2.0 + whl_w / 2.0), veh_z],          # right bottom back
+                    [veh_x + veh_l / 2.0, veh_y + (veh_w / 2.0 + whl_w / 2.0), veh_z]           # left bottom back
                 ]
-            wc_mesh = vedo.Line(whl_centers[0], whl_centers[1], c='green', lw=2)
+            # wc_mesh = vedo.Line(whl_centers[0], whl_centers[1], c='green', lw=2)
+            wc_mesh = vedo.Mesh([whl_centers, [(0, 1, 2), (1, 2, 3)]], alpha=1.0)
+            wc_mesh.linecolor('yellow').linewidth(0.6)
             # print('WC Point: ', wc_mesh.points())
             mesh_objects.add_mesh(mesh_id, wc_mesh)
 
@@ -1315,7 +1368,7 @@ def make_vehicle_mesh(mesh_objects: Intf.AllMeshObjects, mesh_ids: list[int]) ->
                            [veh_x - veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r],  # left, top
                            [veh_x + veh_l / 2.0, veh_y + veh_w / 2.0, veh_z + whl_r]]  # right, top
 
-            vc_mesh = vedo.Mesh([veh_corners, [(0, 1, 2), (1, 2, 3)]], alpha=0.3)
+            vc_mesh = vedo.Mesh([veh_corners, [(0, 1, 2), (1, 2, 3)]], alpha=1.0)
             vc_mesh.linecolor('yellow').linewidth(0.6)
             mesh_objects.add_mesh(mesh_id, vc_mesh)
 
@@ -1337,7 +1390,10 @@ def mouse_track(event):
 
     if g_plot.plotter_mode == Glb.VEHICLE_RUNNER:
         close_mouse_point = find_closest_point(mouse_point)
-        if g_plot.gp_int_state == 2:
+        if g_plot.gp_int_state == 1:
+            g_plot.mesh_objects.move_all(position=close_mouse_point)
+            plt.render()
+        elif g_plot.gp_int_state == 2:
             if len(g_plot.plotted_trackers) > 0:
                 plt.remove(g_plot.plotted_trackers.pop())
             add_ruler([g_plot.current_points[0], close_mouse_point], width=3, col='yellow', size=Glb.TEXT_SIZE)

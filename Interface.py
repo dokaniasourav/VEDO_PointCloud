@@ -43,14 +43,28 @@ class MeshObject:
 
 
 class VehicleData:
-    width: float
-    length: float
-    height: float
-    num_wheels: int
-    wheel_width: float
-    wheel_radius: float
-    back_overhang: float
-    front_overhang: float
+
+    def __init__(self, output_dict: dict[str, str]):
+
+        print(output_dict)
+        self.valid_data = True
+        if 'WheelWidth' not in output_dict:
+            self.valid_data = False
+            return
+
+        self.num_wheels: int = 4
+        self.wheel_width: float = float(output_dict['WheelWidth'])
+        self.wheel_radius: float = float(output_dict['WheelRadius'])
+
+        self.width: float = float(output_dict['VehicleWidth'])
+        self.length: float = float(output_dict['VehicleLength'])
+        self.back_overhang: float = float(output_dict['BackOverhang'])
+        self.front_overhang: float = float(output_dict['FrontOverhang'])
+
+        _num_points = float(output_dict['NumberOfPoints'])
+        self.num_of_points: int = int(round(_num_points))
+
+        self.height: float = self.wheel_radius/2.0
     # disp_location: list[list[float]]
     # mesh_location: list[list[float]]
     # mesh_rotation: list[float]
